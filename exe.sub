@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Set input variables
+CONFIGURATION_FILE="./sss_environment"
+CONDA_ENVIRONMENT="Kraken"
+JOB_NAME="test"
+PYTHON_SCRIPT="Main.py"
+INPUT_SCRIPT="Input.py"
+PARTITION="savio3"
+NNODES=4
+NHOURS=20
+GROUP_ACCOUNT="fc_neutronics"
+QOS="savio_normal"
+
+# Set SLURM parameters
+export BATCH_JOB_NAME=$JOB_NAME
+export SBATCH_OUTPUT="${JOB_NAME}.o"
+export SBATCH_ERROR="${JOB_NAME}.err"
+export SBATCH_ACCOUNT=$GROUP_ACCOUNT
+export SBATCH_QOS=$QOS
+export PARTITION_CPUS_PER_NODE=$(sinfo -p ${PARTITION} --Node --format="%C" | awk -F'/' '{print $1}' | sort -n | tail -n 1)
+export SLURM_NTASKS=$((NNODES * PARTITION_CPUS_PER_NODE))
+export SBATCH_TIMELIMIT=$((NHOURS * 60))
+
+# Print job information
+echo "Running HxF with the following parameters:"
+echo "------------------------------------------------------"
+echo "Job name: ${BATCH_JOB_NAME}"
+echo "Script: ${PYTHON_SCRIPT}"
+echo "Input script: ${INPUT_SCRIPT}"
+echo "Group account: ${GROUP_ACCOUNT} (QoS: ${QOS})"
+echo "Configuration: ${NNODES} x ${PARTITION} (max ${PARTITION_CPUS_PER_NODE} CPUs/node)"
+echo "Environment loaded from: ${CONFIGURATION_FILE} (conda environment: ${CONDA_ENVIRONMENT})"
+echo "Time limit: ${NHOURS} hours"
+echo "------------------------------------------------------"
+
+# Load the environment
+source ${CONFIGURATION_FILE}
+
+# Run the Python script
+mpirun -np 1 --bind-to none -oversubscribe python ${PYTHON_SCRIPT} ${INPUT_SCRIPT} ${PARTITION_CPUS_PER_NODE} ${NNODES}

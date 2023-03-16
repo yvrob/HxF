@@ -155,7 +155,6 @@ Nfuel = sum(['fuel' in u for u in data['uni']])
 # Prepare case
 serpent, serpent_input_files = start_Serpent(sssexe, ncores, main_input_file, nnodes, verbosity_mode)
 nplots = count_plots(serpent_input_files) # count number of plot commands in input files
-#erase_working_plots() # erase the first plots
 
 #%% Time and filling step-dependent list with values if needed
 

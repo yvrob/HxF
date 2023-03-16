@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Load necessary modules
+echo "Loading modules..."
+module unload python gcc cmake nano
+module load python/3.8.8 gcc/4.8.5 openmpi cmake/3.22.0 nano
+
+# Initialize Conda environment
+echo "Initializing Conda environment..."
+__conda_setup="$('/global/software/sl-7.x86_64/modules/langs/python/3.8.8/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/global/software/sl-7.x86_64/modules/langs/python/3.8.8/etc/profile.d/conda.sh" ]; then
+        . "/global/software/sl-7.x86_64/modules/langs/python/3.8.8/etc/profile.d/conda.sh"
+    else
+        export PATH="/global/software/sl-7.x86_64/modules/langs/python/3.8.8/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+
+# Activate Conda environment
+echo "Activating Conda environment..."
+conda deactivate
+conda activate $1
+
+# Set environment variables
+echo "Setting environment variables..."
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/global/home/groups/co_nuclear/gd_library/code/lib
+export LIBRARY_PATH=$LIBRARY_PATH:/global/home/groups/co_nuclear/gd_library/code/lib
+export CPATH=$CPATH:/global/home/groups/co_nuclear/gd_library/code/include
+
+# Print message indicating environment has been loaded
+echo "Serpent environment loaded."
