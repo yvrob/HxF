@@ -1,0 +1,36 @@
+set bc 1
+%%---plotting geometry
+plot 1 1615 2000
+plot 3 2000 2000 226.0
+
+
+%%---surf for core
+surf infinite inf
+
+%%---surf for triso inside fuel pebbles (spheres)
+surf central_graphite sph 0 0 0 1.38 % internal graphite
+surf graphite_mat sph 0 0 0 1.80 % graphite matrix maximum radius
+
+surf core_surf          cylz    0.0 0.0 120.00      60.00    369.47
+surf refl_side_surf     cylz    0.0 0.0 180.00      0.0      429.47
+surf CB_surf            cylz    0.0 0.0 182.00      0.0      429.47
+surf FLiBe_DC_surf      cylz    0.0 0.0 187.00      0.0      429.47
+surf RV_surf            cylz    0.0 0.0 191.00      0.0      429.47
+surf refl_bottom_surf   cylz    0.0 0.0 120.00      0.0      60.0
+surf refl_top_surf      cylz    0.0 0.0 120.00      369.47   429.47 
+
+
+pbed u_pb u_flibe "fpb_pos" 
+cell c_pb               0   fill u_pb     -core_surf
+cell c_refl_side        0   reflectorS    -refl_side_surf core_surf refl_bottom_surf refl_top_surf
+cell c_refl_bottom      0   reflectorB    -refl_bottom_surf
+cell c_refl_top         0   reflectorT    -refl_top_surf
+    
+cell c_CB               0   CBSS316H      -CB_surf          refl_side_surf  
+cell c_DC               0   FLiBe         -FLiBe_DC_surf    CB_surf
+cell c_RV               0   RVSS316H      -RV_surf          FLiBe_DC_surf
+
+cell out_cell 0 outside     RV_surf
+
+cell c_flibe u_flibe FLiBeInC -infinite
+

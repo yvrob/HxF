@@ -1,16 +1,16 @@
 print("""
 ============================================================
 ||                                                        ||
-||    8 8888        8 `8.`8888.      ,8' 8 88888888888    ||  
-||    8 8888        8  `8.`8888.    ,8'  8 8888           || 
-||    8 8888        8   `8.`8888.  ,8'   8 8888           || 
-||    8 8888        8    `8.`8888.,8'    8 8888           || 
-||    8 8888        8     `8.`88888'     8 88888888888    || 
-||    8 8888        8     .88.`8888.     8 8888           || 
-||    8 8888888888888    .8'`8.`8888.    8 8888           || 
-||    8 8888        8   .8'  `8.`8888.   8 8888           || 
-||    8 8888        8  .8'    `8.`8888.  8 8888           || 
-||    8 8888        8 .8'      `8.`8888. 8 8888           || 
+||    8 8888        8 `8.`8888.      ,8' 8 88888888888    ||
+||    8 8888        8  `8.`8888.    ,8'  8 8888           ||
+||    8 8888        8   `8.`8888.  ,8'   8 8888           ||
+||    8 8888        8    `8.`8888.,8'    8 8888           ||
+||    8 8888        8     `8.`88888'     8 88888888888    ||
+||    8 8888        8     .88.`8888.     8 8888           ||
+||    8 8888888888888    .8'`8.`8888.    8 8888           ||
+||    8 8888        8   .8'  `8.`8888.   8 8888           ||
+||    8 8888        8  .8'    `8.`8888.  8 8888           ||
+||    8 8888        8 .8'      `8.`8888. 8 8888           ||
 ||                                                        ||
 ============================================================
 """)
@@ -71,17 +71,28 @@ atexit.register(os.chdir, original_path) # Come back to original folder when the
 #%% Change positions, universes and radii based on input
 
 # If restarting from a step, calculate equivalent step and positions
-if read_restart:
+if restart_calculation:
     first_step = restart_step
-    print(f'Restarting from step {restart_step}, binary data at "{restart_binary}" and reading data at "{restart_data}".') 
+    print(f'Restarting from step {restart_step}, binary data at "{restart_binary}" and reading data at "{restart_data}".')
     if not os.path.exists(restart_data):
         raise Exception(f'Restart mode selected but no restart data table found at {restart_data}')
     if not os.path.exists(restart_binary):
         raise Exception(f'Restart mode selected but no restart binary found at {restart_binary}')
+    else:
+        nrestarts = len(glob(f'{restart_binary}*')) # count number of restart files
     with open(main_input_file, 'a') as f:
-        f.write(f'\nset rfr idx 0 "{restart_binary}"\n')
+        f.write(f'\nset rfr idx 0 "{restart_binary}" {nrestarts}\n')
 else:
     first_step = 0
+    if read_firt_compositions:
+        if not os.path.exists(restart_data):
+            raise Exception(f'First composition binary mode selected but no restart data table found at {restart_data}')
+        if not os.path.exists(restart_binary):
+            raise Exception(f'First composition binary mode selected but no restart binary found at {restart_binary}')
+        else:
+            nrestarts = len(glob(f'{restart_binary}*')) # count number of restart files
+        with open(main_input_file, 'a') as f:
+            f.write(f'\nset rfr idx 0 "{restart_binary}" {nrestarts}\n')
 
 # DEM motion: import first DEM positions
 if not discrete_motion:
@@ -93,12 +104,13 @@ if not discrete_motion:
         DEM_start, DEM_end, transition, error_rz = looper(position_files, DEM_start, DEM_end, looper_Nr, looper_Nz, looper_method)
         print(f'Looper ready: from DEM step {DEM_start} to {DEM_end} (err={error_rz:.2f})')
     position_files = position_files[DEM_start:DEM_end+1]
-    if first_step == 0:
+
+    if restart_calculation or read_firt_compositions:
+        data = pd.read_csv(restart_data, index_col=0)
+    else:
         data = pd.read_csv(position_files[0])[['x','y','z']]*positions_scale + np.array(positions_translation) # read new positions from DEM file
         data['r'] = r_pebbles # Change radii
 
-    else:
-        data = pd.read_csv(restart_data, index_col=0)
     data['r_dist'] = np.linalg.norm(data[['x', 'y']], axis=1)
     time_per_pass = data.shape[0]/circulation_rate
 
@@ -123,7 +135,7 @@ else:
 print()
 
 # Assign random universe, based on fuel fraction, if not restarting
-if not read_restart:
+if not restart_calculation:
     print(f'Assigning random universes with fuel fraction of {fuel_frac*100:.2f}%\n')
     if fuel_frac != 1:
         data['uni'] = assign_random_array(np.arange(len(data)), [fuel_pebble_universe_name, graph_pebble_universe_name], [fuel_frac, 1-fuel_frac]) # Spl
@@ -267,23 +279,25 @@ for name in detector_names:
         pbed.data.loc[~pbed.data['fuel'], f'integrated_{name}_unc'] = np.nan
         pbed.data.loc[~pbed.data['fuel'], f'integrated_{name}_rel_unc'] = np.nan
 
-# Initialize columns for each isotope in inventory
-for name in inventory_names:
-    pbed.data.loc[pbed.data['fuel'], name] = Serpent_get_values(tra[name])
-
-if read_restart:
+if restart_calculation:
     pbed.data[data.columns] = data.copy()
 else:
     # Initialize field corresponding to threshold
     if threshold_type == 'passes':
-        pbed.data.loc[pbed.data['fuel'], threshold_type] = np.random.randint(0, threshold+1, Nfuel) # Uniform integer distribution between 0 and threshold value
+        pbed.data.loc[pbed.data['fuel'], threshold_type] = np.random.randint(1, threshold+1, Nfuel) # Uniform integer distribution between 0 and threshold value, in Python
     else:
-        pbed.data.loc[pbed.data['fuel'], threshold_type] = np.random.uniform(0, threshold, Nfuel) # Uniform distribution between 0 and threshold value
+        Serpent_set_multiple_values(tra[f'{threshold_type}_in'], np.random.uniform(0, threshold, Nfuel)) # Uniform distribution between 0 and threshold value, in Serpent
 
-# Communicate to Serpent
-if threshold_type != 'passes':
-    Serpent_set_multiple_values(tra[f'{threshold_type}_in'], pbed.data.loc[pbed.data['fuel'], threshold_type]) # communicate to Serpent
+#%% Communicate some data from Serpent (checking purpose, threshold, and filling data for restart)
 
+# Burnup
+pbed.data.loc[pbed.data['fuel'], 'burnup'] = Serpent_get_values(tra['bu_out'])
+
+# Initialize columns for each isotope in inventory
+for name in inventory_names:
+    pbed.data.loc[pbed.data['fuel'], name] = Serpent_get_values(tra[name])
+
+# Domain decomposition
 if domain_decomposition:
     pbed.data.loc[pbed.data['fuel'], 'domain_id'] = initial_domains # Monitor which domain pebbles are in
 
@@ -468,13 +482,13 @@ for step in range(first_step, Nsteps):
         for i in inventory_names:
             pbed.reinserted_data.loc[pbed.data['discarded'], i] = fresh_fuel[nuclides_list.index(int(i))]
             pbed.reinserted_fuel_data.loc[pbed.data['discarded'], i] = fresh_fuel[nuclides_list.index(int(i))]
-        
+
         # Reset recirculated data
         pbed.data.loc[pbed.data['recirculated'], 'passes'] += 1 # add one pass
         pbed.data.loc[pbed.data['recirculated'], 'pass_residence_time'] = 0.0 # reset pass residence time
         pbed.data.loc[pbed.data['recirculated'], 'pass_burnup'] = 0.0 # reset pass burnup
         pbed.data.loc[pbed.data['recirculated'], 'agg_r_dist_pass'] = 0.0
-        
+
         curr_time = float(next_time) # Increment time
         pbed.data['pass_residence_time'] += time_step  # Increment pass residence times
         pbed.data['residence_time'] += time_step  # Increment residence times

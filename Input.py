@@ -12,7 +12,8 @@ discrete_motion = False
 looping = True
 
 # Restart
-read_restart = True
+restart_calculation = True
+read_firt_compositions = False
 
 # Output
 plotting = True
@@ -49,7 +50,7 @@ decay_step = 0 # days
 
 #%% Burnup cycle
 threshold_type = 'burnup'
-threshold = 72 * 1.1
+threshold = 72
 
 #%% Motion
 motion_direction = -1
@@ -82,13 +83,19 @@ verbosity_mode = 0
 
 
 #%% Domain decomposition
-allowed_decomposition_types = 'ars'
-max_domains = [6, 4, 10]
+if domain_decomposition:
+    allowed_decomposition_types = 'ars'
+    max_domains = [6, 4, 10]
 
 #%% Restart write
-restart_write_every = 10
+if write_restart:
+    restart_write_every = 10
 
 #%% Restart read
-restart_step = 650
-restart_data = '/global/scratch/users/yvesrobert/HTR-10_latest/Cases/HTR-10_P1_T1/Data/data_650.csv'
-restart_binary = '/global/scratch/users/yvesrobert/HTR-10_latest/Cases/HTR-10_P1_T1/wrk_Serpent/input.inp.wrk_650'
+if restart_calculation:
+    restart_step = 650
+    restart_data = '/global/scratch/users/yvesrobert/HTR-10_latest/Cases/HTR-10_P1_T1/Data/data_650.csv'
+    restart_binary = '/global/scratch/users/yvesrobert/HTR-10_latest/Cases/HTR-10_P1_T1/wrk_Serpent/input.inp.wrk_650'
+elif read_firt_compositions:
+    restart_binary = './Tools/Create_initial_compositions/restart/first_compos.wrk'
+    restart_data = './Tools/Create_initial_compositions/data_first_compos.csv'
