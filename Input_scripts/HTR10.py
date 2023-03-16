@@ -21,7 +21,7 @@ saving = True
 write_restart = True
 
 #%% Case
-path_to_case = './Inputs' # Path to input folder parent
+path_to_case = './Models' # Path to input folder parent
 case_name = 'HTR-10' # Name of the input folder
 main_input_file = 'input.inp' # Name of the main input file
 

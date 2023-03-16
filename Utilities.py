@@ -13,16 +13,17 @@ import cerberus as cb
 import time
 
 def start_Serpent(serpent_executable, ncores, input_files, nnodes=1, verbosity=1):
-        cb.LOG.set_verbosity(verbosity)
-        if isinstance(input_files, str):
-            input_files = rec_Serpent_file_search(input_files)
-        serpent = Solver("Serpent", serpent_executable, f"-port -omp {ncores}".split())
-        serpent.input = CodeInput(input_files, main_input_idx=0)
-        if nnodes==1:
-            serpent.initialize()
-        else:
-            serpent.initialize(use_MPI=True) #, n_MPI_procs_to_spawn=nnodes)
-        return serpent, input_files
+		cb.LOG.set_verbosity(verbosity)
+		if isinstance(input_files, str):
+			input_files = rec_Serpent_file_search(input_files)
+		print("\nInitializing Serpent. Waiting...")
+		serpent = Solver("Serpent", serpent_executable, f"-port -omp {ncores}".split())
+		serpent.input = CodeInput(input_files, main_input_idx=0)
+		if nnodes==1:
+			serpent.initialize()
+		else:
+			serpent.initialize(use_MPI=True) #, n_MPI_procs_to_spawn=nnodes)
+		return serpent, input_files
 
 def plot_Serpent(tra_plot, plots_folder_path=None, output_suffix=None, output_folder=None, nplots=None, delay=60, serpent_instance=None):
 	Serpent_set_values(tra_plot, 1, serpent_instance=serpent_instance)
@@ -626,34 +627,34 @@ def element_to_Z(element):
 		return elements.index(element)+1
 
 def natural_sort(l):
-    convert = lambda text: int(text) if text.isdigit() else text.lower()
-    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
-    return sorted(l, key=alphanum_key)
+	convert = lambda text: int(text) if text.isdigit() else text.lower()
+	alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+	return sorted(l, key=alphanum_key)
 
 def xyzr_to_array(xyzr):
-    return xyzr.reshape((-1, 4))
+	return xyzr.reshape((-1, 4))
 
 def nodes_to_dd(nnodes, allowed_decomposition_types, max_domains):
-    candidates = []
-    for i in range(1, max_domains[2]+1):
-        for j in range(1, max_domains[1]+1):
-            for k in range(1, max_domains[0]+1):
-                if nnodes == i*j*k:
-                    candidates.append([k,j,i])
-    best_score = 0
-    for c in candidates:
-        score = c[2]+c[1]**2+c[0]**3
-        if score > best_score:
-            best_score = float(score)
-            best_candidate = list(c)
+	candidates = []
+	for i in range(1, max_domains[2]+1):
+		for j in range(1, max_domains[1]+1):
+			for k in range(1, max_domains[0]+1):
+				if nnodes == i*j*k:
+					candidates.append([k,j,i])
+	best_score = 0
+	for c in candidates:
+		score = c[2]+c[1]**2+c[0]**3
+		if score > best_score:
+			best_score = float(score)
+			best_candidate = list(c)
 
-    decomposition_types = []
-    decomposition_domains = []
-    for i in range(len(allowed_decomposition_types)):
-        if best_candidate[i] > 1:
-            decomposition_types.append(allowed_decomposition_types[i])
-            decomposition_domains.append(best_candidate[i])
-    return decomposition_types, decomposition_domains
+	decomposition_types = []
+	decomposition_domains = []
+	for i in range(len(allowed_decomposition_types)):
+		if best_candidate[i] > 1:
+			decomposition_types.append(allowed_decomposition_types[i])
+			decomposition_domains.append(best_candidate[i])
+	return decomposition_types, decomposition_domains
 
 #data, PF, N, output = use_disperser('cylinder', (120.00, 60.00, 369.47), 0.6, 2, 1, 'fpb_pos', 64, grow_and_shake=True, shake_factor=0.05, growth_factor=0.05, print_output=True)
 

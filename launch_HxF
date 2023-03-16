@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# To pass to sbatch
+export PYTHON_SCRIPT="Main.py"
+export INPUT_SCRIPT="./Input_scripts/HTR-10.py"
+export CONFIGURATION_FILE="./sss_environment"
+export CONDA_ENVIRONMENT="Kraken"
+
+# Set input variables
+JOB_NAME="test"
+PARTITION="savio3"
+NNODES=4
+NHOURS=20
+GROUP_ACCOUNT="fc_neutronics"
+QOS="savio_normal"
+
+# Set SLURM parameters
+OUTPUT_FILE="${JOB_NAME}.o"
+ERROR_FILE="${JOB_NAME}.err"
+PARTITION_CPUS_PER_NODE=$(sinfo -p ${PARTITION} --Node --format="%C" | awk -F'/' '{print $1}' | sort -n | tail -n 1)
+NTASKS=$((${NNODES} * ${PARTITION_CPUS_PER_NODE}))
+TIMELIMIT=$((${NHOURS} * 60))
+
+# Print job information
+echo "Running HxF with the following parameters:"
+echo "------------------------------------------------------"
+echo "Job name: ${BATCH_JOB_NAME}"
+echo "Script: ${PYTHON_SCRIPT}"
+echo "Input script: ${INPUT_SCRIPT}"
+echo "Group account: ${GROUP_ACCOUNT} (QoS: ${QOS})"
+echo "Configuration: ${NNODES} x ${PARTITION} (max ${PARTITION_CPUS_PER_NODE} CPUs/node)"
+echo "Environment loaded from: ${CONFIGURATION_FILE} (conda environment: ${CONDA_ENVIRONMENT})"
+echo "Time limit: ${NHOURS} hours"
+echo "------------------------------------------------------"
+
+sbatch -J $JOB_NAME -o $OUTPUT_FILE -e $ERROR_FILE -A $GROUP_ACCOUNT -q $QOS -N ${NNODES} -p $PARTITION -n $NTASKS -t $TIMELIMIT exe.sub

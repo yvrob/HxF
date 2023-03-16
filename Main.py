@@ -15,9 +15,17 @@ print("""
 ============================================================
 """)
 
+from datetime import datetime
+from dateutil.tz import tzlocal
+
+#%% Printing time
+tz = tzlocal() # time zone
+now = datetime.now(tz) # date
+date_str = now.strftime('%A, %B %d, %Y at %I:%M %p %Z')
+print(f"Starting calculation on: {date_str}\n")
 
 #%% Import pebble bed library and utilities
-
+print('Importing modules\n')
 from Pebble_Bed import *
 from Utilities import *
 from Looping import *
@@ -32,13 +40,8 @@ import sys
 from copy import deepcopy
 from IPython import get_ipython
 
-#%% Constants
-
-DEPLETION = 1
-DECAY = 2
-DAYS = 86400
-
 #%% Read nodes and cores from arguments and set domain decomposition if needed (need for explicit name in Jupyter)
+print('Reading input\n')
 if get_ipython().__class__.__name__ != 'ZMQInteractiveShell':
     filename_input = sys.argv[1]
 else:
@@ -46,7 +49,8 @@ else:
 
 #%% Read input from file
 globals().update(importlib.import_module('./Default_Input.py'.replace(".py", "").replace('./', '')).__dict__) # Will read all defaults parameters in input file and import them here
-globals().update(importlib.import_module(filename_input.replace(".py", "").replace('./', '')).__dict__) # Will read all parameters in input file and import them here (overwrites default)
+sys.path.append(os.path.dirname(filename_input))
+globals().update(importlib.import_module(os.path.basename(filename_input).replace(".py", "").replace('./', '')).__dict__) # Will read all parameters in input file and import them here (overwrites default)
 
 try:
     ncores = int(sys.argv[2])
@@ -55,6 +59,12 @@ try:
 except:
     pass
 
+#%% Constants
+
+DEPLETION = 1
+DECAY = 2
+DAYS = 86400
+
 #%% Domain decomposition
 if domain_decomposition:
     decomposition_types, decomposition_domains = nodes_to_dd(nnodes, allowed_decomposition_types, max_domains)
@@ -62,7 +72,6 @@ if domain_decomposition:
 
 #%% Prepare the case
 
-os.chdir(os.path.dirname(__file__)) # Get to the current path
 original_path = str(os.getcwd())
 init_case(case_name, filename_input, path_to_case, output_folder_name) # Copy input files in output folder
 os.chdir(f'Cases/{output_folder_name}') # Go to output folder
