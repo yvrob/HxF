@@ -26,9 +26,9 @@ print(f"Starting calculation on: {date_str}\n")
 
 #%% Import pebble bed library and utilities
 print('Importing modules\n')
-from Pebble_Bed import *
-from Utilities import *
-from Looping import *
+from Utils.Pebble_Bed import Pebble_bed
+from Utils.Utilities import natural_sort, init_case, start_Serpent, Serpent_get_material_wise, Serpent_get_values, Serpent_set_multiple_values, Serpent_set_values
+from Utils.Looping import looper
 
 import pandas as pd
 import os
@@ -39,6 +39,7 @@ import atexit
 import sys
 from copy import deepcopy
 from IPython import get_ipython
+import inspect
 
 #%% Read nodes and cores from arguments and set domain decomposition if needed (need for explicit name in Jupyter)
 print('Reading input\n')
@@ -48,19 +49,48 @@ else:
     filename_input = 'Input'
 
 #%% Read input from file
-globals().update(importlib.import_module('./Default_Input.py'.replace(".py", "").replace('./', '')).__dict__) # Will read all defaults parameters in input file and import them here
+sys.path.append('Utils')
+default_parameters = importlib.import_module('Default_Input.py'.replace(".py", "").replace('./', '')).__dict__
+globals().update(default_parameters) # Will read all defaults parameters in input file and import them here
+parameters = {k: v for k, v in default_parameters.items() if not (k.startswith('__') or k.endswith('__') or callable(v))}
 sys.path.append(os.path.dirname(filename_input))
-globals().update(importlib.import_module(os.path.basename(filename_input).replace(".py", "").replace('./', '')).__dict__) # Will read all parameters in input file and import them here (overwrites default)
+input_parameters = importlib.import_module(os.path.basename(filename_input).replace(".py", "").replace('./', '')).__dict__
+globals().update(input_parameters) # Will read all parameters in input file and import them here (overwrites default)
+parameters.update({k: v for k, v in input_parameters.items() if not (k.startswith('__') or k.endswith('__') or callable(v))})
 
 try:
     ncores = int(sys.argv[2])
+    parameters['ncores'] = ncores
     if len(sys.argv)>2:
         nnodes = int(sys.argv[3])
+        parameters['nnodes'] = nnodes
 except:
     pass
 
-#%% Constants
+# Print
+print("Simulation Input Parameters Summary:")
+print("-" * 50)
+bools = {}
+others = {}
+paths = {}
+for key, value in sorted(parameters.items()):
+    if isinstance(value, bool):
+        bools[key] = value
+    elif isinstance(value, str) and ('/' in value or '\\' in value):
+        paths[key] = value
+    else:
+        others[key] = value
+for key, value in sorted(bools.items(), key=lambda x: x[1], reverse=True):
+    print("{:<40}{}".format(key, value))
+print()
+for key, value in sorted(others.items()):
+    print("{:<40}{}".format(key, value))
+print()
+for key, value in sorted(paths.items()):
+    print("{:<40}{}".format(key, value))
+print("-" * 50)
 
+# Constants
 DEPLETION = 1
 DECAY = 2
 DAYS = 86400

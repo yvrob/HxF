@@ -26,8 +26,7 @@ case_name = 'HTR-10' # Name of the input folder
 main_input_file = 'input.inp' # Name of the main input file
 
 #%% Serpent data (from Serpent input)
-#sssexe = '/global/scratch/users/yvesrobert/latest_Kraken/Serpent_pbed_modified/sss2' # _modified/sss2'
-sssexe = '/global/scratch/users/yvesrobert/Serpent_2.2.0_pbed_gcc12/sss2'
+sssexe = '/global/scratch/users/yvesrobert/latest_Kraken/Serpent/sss2'
 
 # Pebbles
 pbed_file = 'HTR-10_0.inp'
@@ -78,7 +77,7 @@ else:
         looper_method = 'xyz'
 
 #%% Outputing
-output_folder_name = 'HTR-10_restart_P1T1.1' # Name of the output folder
+output_folder_name = 'HTR-10' # Name of the output folder
 verbosity_mode = 0
 
 

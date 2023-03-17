@@ -26,6 +26,6 @@ allowed_decomposition_types = 'ars'
 max_domains = [6, 4, 10]
 
 #%% Configuration
-import multiprocessing
-ncores = multiprocessing.cpu_count()
+from multiprocessing import cpu_count
+ncores = cpu_count()
 nnodes = 1 
