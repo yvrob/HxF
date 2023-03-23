@@ -4,4 +4,4 @@
 source ${CONFIGURATION_FILE} ${CONDA_ENVIRONMENT}
 
 # Run the Python script
-mpirun -np 1 --bind-to none -oversubscribe python ${PYTHON_SCRIPT} ${INPUT_SCRIPT} ${PARTITION_CPUS_PER_NODE} ${NNODES}
+mpirun -np 1 --report-bindings --bind-to none -oversubscribe python ${PYTHON_SCRIPT} ${INPUT_SCRIPT} ${PARTITION_CPUS_PER_NODE} ${NNODES}

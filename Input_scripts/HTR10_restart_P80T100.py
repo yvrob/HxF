@@ -12,7 +12,7 @@ discrete_motion = False
 looping = True
 
 # Restart
-restart_calculation = False
+restart_calculation = True
 read_firt_compositions = False
 
 # Output
@@ -41,7 +41,7 @@ detector_names = ['flux_pebbles_thermal', 'flux_pebbles_fast', 'power_pebbles']
 
 #%% Depletion steps
 power_normalization_field = 'power'
-power_normalization_value = 10e6 # W
+power_normalization_value = 10e6*0.8 # W
 Nsteps = 1000
 neutrons_per_cycle = 200000  #*20 + [10000]*20 + [10000]*(Nsteps-20-20-50) + [50000]*50
 decay_step = 0 # days
@@ -76,7 +76,7 @@ else:
         looper_method = 'xyz'
 
 #%% Outputing
-output_folder_name = 'HTR-10' # Name of the output folder
+output_folder_name = 'HTR-10_restart_P0.8T1' # Name of the input folder
 verbosity_mode = 3
 
 
@@ -97,3 +97,4 @@ if restart_calculation:
 elif read_firt_compositions:
     restart_binary = './Tools/Create_initial_compositions/restart/first_compos.wrk'
     restart_data = './Tools/Create_initial_compositions/data_first_compos.csv'
+

@@ -2,37 +2,45 @@
 
 # To pass to sbatch
 export PYTHON_SCRIPT="HxF.py"
-export INPUT_SCRIPT="./Input_scripts/HTR-10.py"
+export INPUT_SCRIPT="./Input_scripts/HTR10_restart_P60T100.py"
 export CONFIGURATION_FILE="./Utils/sss_environment"
-export CONDA_ENVIRONMENT="Kraken"
+export CONDA_ENVIRONMENT="Kraken_gcc12"
+export NNODES=8
+export SUFFIX=""
+
+export SERPENT_DATA="/global/home/groups/co_nuclear/serpent/xsdata/endfb7"
+export SERPENT_ACELIB="sss_endfb7u.xsdata"
+export SERPENT_DECLIB="sss_endfb7.dec"
+export SERPENT_NFYLIB="sss_endfb7.nfy"
+export SERPENT_EXE="/global/scratch/users/yvesrobert/latest_Kraken/Serpent_gcc12/sss2"
 
 # Set input variables
-JOB_NAME="test"
 PARTITION="savio3"
-NNODES=4
-NHOURS=20
-GROUP_ACCOUNT="fc_neutronics"
+NHOURS=72
+GROUP_ACCOUNT="fc_neutronics" #"pc_dsdisc"
 QOS="savio_normal"
-
 
 ########################################### NO CHANGE NECESSARY BEYOND THAT POINT ###########################################
 # Set SLURM parameters
+export PARTITION_CPUS_PER_NODE=$(sinfo -p ${PARTITION} --Node --format="%C" | awk -F'/' '{print $1}' | sort -n | tail -n 1)
+JOB_NAME=$(basename $INPUT_SCRIPT | cut -d. -f1)
 OUTPUT_FILE="${JOB_NAME}.o"
 ERROR_FILE="${JOB_NAME}.err"
-PARTITION_CPUS_PER_NODE=$(sinfo -p ${PARTITION} --Node --format="%C" | awk -F'/' '{print $1}' | sort -n | tail -n 1)
-NTASKS=$((${NNODES} * ${PARTITION_CPUS_PER_NODE}))
 TIMELIMIT=$((${NHOURS} * 60))
 
 # Print job information
 echo "Running HxF with the following parameters:"
 echo "------------------------------------------------------"
-echo "Job name: ${BATCH_JOB_NAME}"
+echo "Job name: ${JOB_NAME}"
 echo "Script: ${PYTHON_SCRIPT}"
 echo "Input script: ${INPUT_SCRIPT}"
 echo "Group account: ${GROUP_ACCOUNT} (QoS: ${QOS})"
 echo "Configuration: ${NNODES} x ${PARTITION} (max ${PARTITION_CPUS_PER_NODE} CPUs/node)"
 echo "Environment loaded from: ${CONFIGURATION_FILE} (conda environment: ${CONDA_ENVIRONMENT})"
+echo "Serpent path: ${SERPENT_EXE}"
+echo "Nuclear data path: ${SERPENT_DATA} (${SERPENT_ACELIB}" #, ${SERPENT_DECLIB}, ${SERPENT_NFYLIB})"
 echo "Time limit: ${NHOURS} hours"
 echo "------------------------------------------------------"
 
-sbatch -J $JOB_NAME -o $OUTPUT_FILE -e $ERROR_FILE -A $GROUP_ACCOUNT -q $QOS -N ${NNODES} -p $PARTITION -n $NTASKS -t $TIMELIMIT exe.sub
+#sbatch -J $JOB_NAME -o $OUTPUT_FILE -e $ERROR_FILE -A $GROUP_ACCOUNT -q $QOS -p $PARTITION -n $NTASKS -t $TIMELIMIT Utils/exe.sub
+sbatch -J $JOB_NAME -o $OUTPUT_FILE -e $ERROR_FILE -A $GROUP_ACCOUNT -c $PARTITION_CPUS_PER_NODE -q $QOS -p $PARTITION -N $NNODES -n $NNODES -t $TIMELIMIT --exclusive Utils/exe.sub

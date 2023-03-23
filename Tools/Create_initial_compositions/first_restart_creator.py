@@ -14,6 +14,21 @@ import pickle
 import sys
 import multiprocessing
 
+#%% Input
+print('Reading input')
+parallel_creation = True
+fuel_material_name = "fuel"
+interpolator_data = "gFHR_equilibrium.interpolator"
+name_out = "first_compos"
+positions_file = '../../Models/gFHR/fpb_pos'
+max_burnup = 100  # MWd/kgHM
+npasses = 8
+residence_time = 522  # days
+fuel_frac = 1
+fuel_pebble_universe_name = 'u_fuel_pebble'
+motion_direction = +1
+output_path = './'
+
 def PolarAngle(position):
     x = position[0]
     y = position[1]
@@ -186,22 +201,6 @@ def create_decomposed_restart_files(data, mpitasks, parallel, dep_output, path="
     else:
         for domain_id in range(mpitasks):
             write_domain_restart(data, domain_id, fuel_material, dep_output, files_out)
-
-
-#%% Input
-print('Reading input')
-parallel_creation = True
-fuel_material_name = "fuel_1"
-interpolator_data = "gFHR_equilibrium.interpolator"
-name_out = "first_compos"
-positions_file = '../../Inputs/gFHR/fpb_pos'
-max_burnup = 100  # MWd/kgHM
-npasses = 8
-residence_time = 522  # days
-fuel_frac = 1
-fuel_pebble_universe_name = 'u_fuel_pebble'
-motion_direction = +1
-output_path = './'
 
 #%% Process input
 print('Processing input')

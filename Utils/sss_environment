@@ -3,7 +3,7 @@
 # Load necessary modules
 echo "Loading modules..."
 module unload python gcc cmake nano
-module load python/3.8.8 gcc/4.8.5 openmpi cmake/3.22.0 nano
+module load python/3.8.8 gcc openmpi cmake/3.22.0 nano
 
 # Initialize Conda environment
 echo "Initializing Conda environment..."

@@ -11,19 +11,25 @@ import pandas as pd
 from cerberus.solvers import CodeInput, Solver
 import cerberus as cb
 import time
+from mpi4py import MPI
 
 def start_Serpent(serpent_executable, ncores, input_files, nnodes=1, verbosity=1):
-		cb.LOG.set_verbosity(verbosity)
-		if isinstance(input_files, str):
-			input_files = rec_Serpent_file_search(input_files)
-		print("\nInitializing Serpent. Waiting...")
-		serpent = Solver("Serpent", serpent_executable, f"-port -omp {ncores}".split())
-		serpent.input = CodeInput(input_files, main_input_idx=0)
-		if nnodes==1:
-			serpent.initialize()
-		else:
-			serpent.initialize(use_MPI=True) #, n_MPI_procs_to_spawn=nnodes)
-		return serpent, input_files
+	cb.LOG.set_verbosity(verbosity)
+	if isinstance(input_files, str):
+		input_files = rec_Serpent_file_search(input_files)
+
+	print("Dummy Serpent")
+	child_comm = MPI.COMM_SELF.Spawn(serpent_executable, args=["tuto1"], maxprocs=nnodes - 1) # replace by dummy command that does not crash
+
+	print("\nInitializing Serpent. Waiting...")
+	serpent = Solver("Serpent", serpent_executable, f"-port -omp {ncores}".split())
+	serpent.input = CodeInput(input_files, main_input_idx=0)
+	if nnodes==1:
+		serpent.initialize()
+	else:
+		serpent.initialize(use_MPI=True, n_MPI_procs_to_spawn=nnodes)
+
+	return serpent, input_files
 
 def plot_Serpent(tra_plot, plots_folder_path=None, output_suffix=None, output_folder=None, nplots=None, delay=60, serpent_instance=None):
 	Serpent_set_values(tra_plot, 1, serpent_instance=serpent_instance)
@@ -81,14 +87,14 @@ def rec_Serpent_file_search(main_input, verbose=True, level=0, log_delim='\t'):
 			field_spot = 3
 		elif cmd == 'file':
 			field_spot = 2
-		elif cmd == 'set' and len(fields)>1:
-			if fields[1] == 'rfr':
-				if fields[2] == 'idx':
-					field_spot = 4
-				else:
-					field_spot = 3
-			else:
-				continue
+		# elif cmd == 'set' and len(fields)>1:
+		# 	if fields[1] == 'rfr':
+		# 		if fields[2] == 'idx':
+		# 			field_spot = 4
+		# 		else:
+		# 			field_spot = 3
+		# 	else:
+		# 		continue
 		else:
 			continue
 
@@ -266,6 +272,7 @@ def init_case(case_name, python_input, path_to_case, output_name=None):
 		if file[-3:] != '.py':
 			file += '.py'
 		shutil.copy(file, f'Cases/{output_name}/')
+	shutil.copy('Utils/tuto1', f'Cases/{output_name}/')
 
 def reset_case(to_recreate='all'):
 	if isinstance(to_recreate, str) and to_recreate=='all':

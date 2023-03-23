@@ -26,9 +26,9 @@ print(f"Starting calculation on: {date_str}\n")
 
 #%% Import pebble bed library and utilities
 print('Importing modules\n')
-from Utils.Pebble_Bed import Pebble_bed
-from Utils.Utilities import natural_sort, init_case, start_Serpent, Serpent_get_material_wise, Serpent_get_values, Serpent_set_multiple_values, Serpent_set_values
-from Utils.Looping import looper
+from Utils.Pebble_Bed import *
+from Utils.Utilities import *
+from Utils.Looping import *
 
 import pandas as pd
 import os
@@ -40,6 +40,7 @@ import sys
 from copy import deepcopy
 from IPython import get_ipython
 import inspect
+import shutil
 
 #%% Read nodes and cores from arguments and set domain decomposition if needed (need for explicit name in Jupyter)
 print('Reading input\n')
@@ -115,10 +116,11 @@ if restart_calculation:
     print(f'Restarting from step {restart_step}, binary data at "{restart_binary}" and reading data at "{restart_data}".')
     if not os.path.exists(restart_data):
         raise Exception(f'Restart mode selected but no restart data table found at {restart_data}')
-    if not os.path.exists(restart_binary):
+    restart_files = glob(restart_binary+'*')
+    if len(restart_files)==0:
         raise Exception(f'Restart mode selected but no restart binary found at {restart_binary}')
     else:
-        nrestarts = len(glob(f'{restart_binary}*')) # count number of restart files
+        nrestarts = len(restart_files) # count number of restart files
     with open(main_input_file, 'a') as f:
         f.write(f'\nset rfr idx 0 "{restart_binary}" {nrestarts}\n')
 else:
@@ -126,10 +128,11 @@ else:
     if read_firt_compositions:
         if not os.path.exists(restart_data):
             raise Exception(f'First composition binary mode selected but no restart data table found at {restart_data}')
-        if not os.path.exists(restart_binary):
+        restart_files = glob(restart_binary+'*')
+        if len(restart_files)==0:
             raise Exception(f'First composition binary mode selected but no restart binary found at {restart_binary}')
         else:
-            nrestarts = len(glob(f'{restart_binary}*')) # count number of restart files
+            nrestarts = len(restart_files) # count number of restart files
         with open(main_input_file, 'a') as f:
             f.write(f'\nset rfr idx 0 "{restart_binary}" {nrestarts}\n')
 
@@ -185,6 +188,7 @@ else:
     data.loc[~data['fuel'], 'uni'] = graph_pebble_universe_name
 # Save
 data[['x','y','z','r','uni']].to_csv(pbed_file, header=False, index=False, sep='\t')
+data['r_dist'] = np.linalg.norm(data[['x', 'y']], axis=1)
 data.loc[list(data.sort_values(['z', 'r_dist']).index), 'id'] = np.arange(len(data)).astype(int) # sort by z and radial distance
 
 # Count
@@ -192,7 +196,7 @@ Npebbles = len(data['r'])
 Nfuel = sum(['fuel' in u for u in data['uni']])
 
 # Prepare case
-serpent, serpent_input_files = start_Serpent(sssexe, ncores, main_input_file, nnodes, verbosity_mode)
+serpent, serpent_input_files = start_Serpent(os.environ["SERPENT_EXE"], ncores, main_input_file, nnodes, verbosity_mode)
 nplots = count_plots(serpent_input_files) # count number of plot commands in input files
 
 #%% Time and filling step-dependent list with values if needed
@@ -245,7 +249,7 @@ tra = dict()
 tra['plot']          = Serpent_set_values("plot_geometry", 1, serpent, communicate=False) # Can be called to plot latest position/geometry
 tra['write_restart'] = get_transferrable("write_restart", serpent, input_parameter=True) # Can be called to plot latest position/geometry
 tra['xyzr_in']       = get_transferrable(f"pbed_{pbed_universe_name}_xyzr", serpent, input_parameter=True) # Can be called to change pebbles positions
-tra['bu_in']         = Serpent_get_material_wise(fuel_mat_name, 'burnup', serpent, input_parameter=True) # Can be called to change pebble-wise burnup
+tra['burnup_in']         = Serpent_get_material_wise(fuel_mat_name, 'burnup', serpent, input_parameter=True) # Can be called to change pebble-wise burnup
 tra['reset_fuel']    = Serpent_get_material_wise(fuel_mat_name, 'reset', serpent, prefix='composition', input_parameter=True) # Can be called to reset the fuel composition to the original one (discarded -> fresh)
 #tra['compo_in']    = Serpent_get_material_wise(fuel_mat_name, 'adens', serpent, prefix='composition', input_parameter=True) # Can be called to reset the fuel composition to the original one (discarded -> fresh)
 tra['burnable_fuel'] = Serpent_get_material_wise(fuel_mat_name, 'burnable', serpent, prefix='material', input_parameter=True) # Can be called to switch between burnable and non-burnable pebbles (useful for decay)
@@ -501,7 +505,7 @@ for step in range(first_step, Nsteps):
         print(f'\tInserting {Ndiscarded} fresh pebbles')
         if transport:
             Serpent_set_multiple_values(tra['reset_fuel'][pbed.data.loc[pbed.data["fuel"],"discarded"].values], np.ones(Ndiscarded).astype(int)) # Reset fuel composition for discarded pebbles (=>fresh)
-            Serpent_set_multiple_values(tra['bu_in'][pbed.data.loc[pbed.data["fuel"],"discarded"].values], np.zeros(Ndiscarded)) # Reset burnup for discarded pebbles to 0
+            Serpent_set_multiple_values(tra['burnup_in'][pbed.data.loc[pbed.data["fuel"],"discarded"].values], np.zeros(Ndiscarded)) # Reset burnup for discarded pebbles to 0
 
             # Reset integrated tallies to 0
             for name in detector_names:

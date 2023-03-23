@@ -12,7 +12,7 @@ discrete_motion = False
 looping = True
 
 # Restart
-restart_calculation = False
+restart_calculation = True
 read_firt_compositions = False
 
 # Output
@@ -22,7 +22,7 @@ write_restart = True
 
 #%% Case
 path_to_case = './Models' # Path to input folder parent
-case_name = 'HTR-10' # Name of the input folder
+case_name = 'HTR-10_restart_P1T1.1' # Name of the input folder
 main_input_file = 'input.inp' # Name of the main input file
 
 #%% Serpent data (from Serpent input)
@@ -48,7 +48,7 @@ decay_step = 0 # days
 
 #%% Burnup cycle
 threshold_type = 'burnup'
-threshold = 72
+threshold = 72*1.1
 
 #%% Motion
 motion_direction = -1
@@ -76,7 +76,7 @@ else:
         looper_method = 'xyz'
 
 #%% Outputing
-output_folder_name = 'HTR-10' # Name of the output folder
+output_folder_name = 'HTR-10_restart_P1T1.1' # Name of the output folder
 verbosity_mode = 3
 
 
@@ -97,3 +97,4 @@ if restart_calculation:
 elif read_firt_compositions:
     restart_binary = './Tools/Create_initial_compositions/restart/first_compos.wrk'
     restart_data = './Tools/Create_initial_compositions/data_first_compos.csv'
+
