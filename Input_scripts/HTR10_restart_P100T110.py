@@ -22,7 +22,7 @@ write_restart = True
 
 #%% Case
 path_to_case = './Models' # Path to input folder parent
-case_name = 'HTR-10_restart_P1T1.1' # Name of the input folder
+case_name = 'HTR-10' # Name of the input folder
 main_input_file = 'input.inp' # Name of the main input file
 
 #%% Serpent data (from Serpent input)

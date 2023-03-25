@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# Python scripts
+INPUT_SCRIPT="./Input_scripts/HTR10.py" # Python input
+PYTHON_SCRIPT="HxF.py" # Main script (should not be changed)
+
+# Conda environment
+CONDA_ENVIRONMENT="kraken" # Name of conda environment created with setup_Cerberus
+CONFIGURATION_FILE="./Utils/sss_environment" # Script loading conda environment and variables (should not be changed)
+
+# Cluster configuration
+GROUP_ACCOUNT="co_nuclear" # Name of the account to use (e.g. co_nuclear, fc_neutronics)
+PARTITION="savio" # Name of partition (e.g. savio, savio2, savio3, savio2_bigmem, ...)
+NNODES=3 # Number of nodes to use
+QOS="nuclear_savio_normal" # QoS associated to group account (savio_normal for fc_neutronics, nuclear_savio_normal for co_nuclear)
+NHOURS=1 # Time limit in hours for the job
+SUFFIX_JOB="" # Suffix (if needed) for the job name, otherwise takes the name of the Python input script
+
+# Serpent variables
+SERPENT_EXE="/global/scratch/users/yvesrobert/latest_Kraken/Serpent_gcc12/sss2" # Serpent executable path
+SERPENT_DATA="/global/home/groups/co_nuclear/serpent/xsdata/endfb7" # Nuclear data folder path
+SERPENT_ACELIB="sss_endfb7u.xsdata" # Name of cross sections library. Put empty string if not used/needed
+SERPENT_DECLIB="sss_endfb7.dec" # Name of decay library. Put empty string if not used/needed
+SERPENT_NFYLIB="sss_endfb7.nfy" # Name of fission yields library. Put empty string if not used/needed
+
+
+

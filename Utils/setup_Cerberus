@@ -1,0 +1,64 @@
+#!/bin/bash
+
+CONDA_ENV_NAME="kraken" # name that will be used for the conda environment to activate whenever using Cerberus/KrakenTools
+#KRAKEN_PATH="/global/home/groups/co_nuclear/KrakenTools"
+#CERBERUS_PATH="/global/home/groups/co_nuclear/Cerberus"
+KRAKEN_PATH="/global/home/groups/co_nuclear/HxF_tools/KrakenTools_HxF"
+CERBERUS_PATH="/global/home/groups/co_nuclear/HxF_tools/Cerberus_HxF"
+
+# Load necessary modules
+echo "Loading modules..."
+module unload python gcc cmake nano
+module load python/3.8.8 gcc openmpi cmake/3.22.0 nano
+
+# Initialize conda
+echo "Initializing Conda..."
+__conda_setup="$('/global/software/sl-7.x86_64/modules/langs/python/3.8.8/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/global/software/sl-7.x86_64/modules/langs/python/3.8.8/etc/profile.d/conda.sh" ]; then
+        . "/global/software/sl-7.x86_64/modules/langs/python/3.8.8/etc/profile.d/conda.sh"
+    else
+        export PATH="/global/software/sl-7.x86_64/modules/langs/python/3.8.8/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+
+# Create custom conda directory in scratch folder
+#### Home directories can be saturated easily, instead you can use your scratch folder (unlimited storage but no backup) ####
+SCRATCH="/global/scratch/users/$USER"
+echo "Making new conda directory for packages in: $SCRATCH/conda..."
+mkdir -p $SCRATCH/conda
+conda config --add envs_dirs $SCRATCH/conda
+mkdir -p $SCRATCH/conda/pkgs
+conda config --add pkgs_dirs $SCRATCH/conda/pkgs
+
+# Create conda environment and activate it
+echo "Removing old $CONDA_ENV_NAME conda environment..."
+conda deactivate
+conda remove -y -n $CONDA_ENV_NAME --all
+rm -rf $SCRATCH/conda/$CONDA_ENV_NAME
+
+echo "Creating new $CONDA_ENV_NAME conda environment..."
+conda create -y --prefix $SCRATCH/conda/$CONDA_ENV_NAME python=3.8.8
+
+echo "Activating $CONDA_ENV_NAME conda environment..."
+conda activate $CONDA_ENV_NAME
+
+# Install packages in new environment
+echo "Installing Python packages..."
+conda install -y pip ipykernel
+pip install --no-cache-dir serpentTools numpy scipy pandas matplotlib mpi4py ipython
+
+# Add the conda environment to Jupyter Notebook
+ipython kernel install --user --name=$CONDA_ENV_NAME
+
+# Add Cerberus and KrakenTools libraries
+conda develop $CERBERUS_PATH
+conda develop $KRAKEN_PATH
+
+# Test if the installation worked
+conda deactivate
+conda activate $CONDA_ENV_NAME
+python -c "import cerberus; print('\tTest OK');"

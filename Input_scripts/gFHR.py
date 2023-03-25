@@ -13,7 +13,7 @@ looping = False
 
 # Restart
 restart_calculation = False
-read_firt_compositions = True
+read_firt_compositions = False #True
 
 # Output
 plotting = True
@@ -43,7 +43,7 @@ detector_names = ['flux_pebbles_thermal', 'flux_pebbles_fast', 'power_pebbles']
 power_normalization_field = 'power'
 power_normalization_value = 280e6 # W
 Nsteps = 60+120+500
-neutrons_per_cycle = [20]*60 + [10]*120 + [500000]*500
+neutrons_per_cycle = [50000]*20+[100000]*20+[500000]*(Nsteps-20-20)
 decay_step = 0 # days
 
 #%% Burnup cycle

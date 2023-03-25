@@ -1,32 +1,30 @@
 #!/bin/bash
 
-# To pass to sbatch
-export PYTHON_SCRIPT="HxF.py"
-export INPUT_SCRIPT="./Input_scripts/HTR10_restart_P60T100.py"
-export CONFIGURATION_FILE="./Utils/sss_environment"
-export CONDA_ENVIRONMENT="Kraken_gcc12"
-export NNODES=8
-export SUFFIX=""
+# Import configuration from file
+CONFIGURATION_FILE=$1
+source $CONFIGURATION_FILE
 
-export SERPENT_DATA="/global/home/groups/co_nuclear/serpent/xsdata/endfb7"
-export SERPENT_ACELIB="sss_endfb7u.xsdata"
-export SERPENT_DECLIB="sss_endfb7.dec"
-export SERPENT_NFYLIB="sss_endfb7.nfy"
-export SERPENT_EXE="/global/scratch/users/yvesrobert/latest_Kraken/Serpent_gcc12/sss2"
-
-# Set input variables
-PARTITION="savio3"
-NHOURS=72
-GROUP_ACCOUNT="fc_neutronics" #"pc_dsdisc"
-QOS="savio_normal"
+# Export each variable
+for var in PYTHON_SCRIPT INPUT_SCRIPT CONFIGURATION_FILE CONDA_ENVIRONMENT NNODES SUFFIX JOB PARTITION NHOURS GROUP_ACCOUNT QOS SERPENT_DATA SERPENT_ACELIB SERPENT_DECLIB SERPENT_NFYLIB SERPENT_EXE
+do
+    export $var
+done
 
 ########################################### NO CHANGE NECESSARY BEYOND THAT POINT ###########################################
 # Set SLURM parameters
 export PARTITION_CPUS_PER_NODE=$(sinfo -p ${PARTITION} --Node --format="%C" | awk -F'/' '{print $1}' | sort -n | tail -n 1)
-JOB_NAME=$(basename $INPUT_SCRIPT | cut -d. -f1)
-OUTPUT_FILE="${JOB_NAME}.o"
-ERROR_FILE="${JOB_NAME}.err"
-TIMELIMIT=$((${NHOURS} * 60))
+export JOB_NAME=$(basename $INPUT_SCRIPT | cut -d. -f1)${SUFFIX_JOB}
+mkdir -p ./Logs
+export OUTPUT_FILE="./Logs/${JOB_NAME}${SUFFIX_JOB}.o"
+export ERROR_FILE="./Logs/${JOB_NAME}${SUFFIX_JOB}.err"
+export TIMELIMIT=$((${NHOURS}${SUFFIX_JOB} * 60))
+
+# Remove Serpent data if not existing
+for var in SERPENT_DATA SERPENT_ACELIB SERPENT_DECLIB SERPENT_NFYLIB; do
+    if [ -z "${!var}" ]; then
+        unset $var
+    fi
+done
 
 # Print job information
 echo "Running HxF with the following parameters:"
@@ -38,9 +36,8 @@ echo "Group account: ${GROUP_ACCOUNT} (QoS: ${QOS})"
 echo "Configuration: ${NNODES} x ${PARTITION} (max ${PARTITION_CPUS_PER_NODE} CPUs/node)"
 echo "Environment loaded from: ${CONFIGURATION_FILE} (conda environment: ${CONDA_ENVIRONMENT})"
 echo "Serpent path: ${SERPENT_EXE}"
-echo "Nuclear data path: ${SERPENT_DATA} (${SERPENT_ACELIB}" #, ${SERPENT_DECLIB}, ${SERPENT_NFYLIB})"
+echo "Nuclear data path: ${SERPENT_DATA} (${SERPENT_ACELIB}, ${SERPENT_DECLIB}, ${SERPENT_NFYLIB})"
 echo "Time limit: ${NHOURS} hours"
 echo "------------------------------------------------------"
 
-#sbatch -J $JOB_NAME -o $OUTPUT_FILE -e $ERROR_FILE -A $GROUP_ACCOUNT -q $QOS -p $PARTITION -n $NTASKS -t $TIMELIMIT Utils/exe.sub
 sbatch -J $JOB_NAME -o $OUTPUT_FILE -e $ERROR_FILE -A $GROUP_ACCOUNT -c $PARTITION_CPUS_PER_NODE -q $QOS -p $PARTITION -N $NNODES -n $NNODES -t $TIMELIMIT --exclusive Utils/exe.sub

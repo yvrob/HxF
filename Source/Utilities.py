@@ -15,6 +15,7 @@ from mpi4py import MPI
 
 def start_Serpent(serpent_executable, ncores, input_files, nnodes=1, verbosity=1):
 	cb.LOG.set_verbosity(verbosity)
+	cb.LOG.set_compiled_table(True)
 	if isinstance(input_files, str):
 		input_files = rec_Serpent_file_search(input_files)
 
@@ -87,14 +88,16 @@ def rec_Serpent_file_search(main_input, verbose=True, level=0, log_delim='\t'):
 			field_spot = 3
 		elif cmd == 'file':
 			field_spot = 2
-		# elif cmd == 'set' and len(fields)>1:
-		# 	if fields[1] == 'rfr':
-		# 		if fields[2] == 'idx':
-		# 			field_spot = 4
-		# 		else:
-		# 			field_spot = 3
-		# 	else:
-		# 		continue
+		elif cmd == 'set' and len(fields)>1:
+			if fields[1] == 'dd' and fields[2] =='5':
+				field_spot = 3
+			# elif fields[1] == 'rfr':
+			# 	if fields[2] == 'idx':
+			# 		field_spot = 4
+			# 	else:
+			# 		field_spot = 3
+			else:
+				continue
 		else:
 			continue
 

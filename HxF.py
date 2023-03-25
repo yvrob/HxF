@@ -96,17 +96,20 @@ DEPLETION = 1
 DECAY = 2
 DAYS = 86400
 
-#%% Domain decomposition
-if domain_decomposition:
-    decomposition_types, decomposition_domains = nodes_to_dd(nnodes, allowed_decomposition_types, max_domains)
-    print(f'Using Domain Decomposition with domains of types "{decomposition_types}" and breakout {decomposition_domains}')
-
 #%% Prepare the case
 
 original_path = str(os.getcwd())
 init_case(case_name, filename_input, path_to_case, output_folder_name) # Copy input files in output folder
 os.chdir(f'Cases/{output_folder_name}') # Go to output folder
 atexit.register(os.chdir, original_path) # Come back to original folder when the script ends (even if error)
+
+#%% Domain decomposition
+if domain_decomposition:
+    decomposition_types, decomposition_domains = nodes_to_dd(nnodes, allowed_decomposition_types, max_domains)
+    print(f'Using Domain Decomposition with domains of types "{decomposition_types}" and breakout {decomposition_domains}')
+    # Add line for domain decomposition to the input
+    with open(main_input_file, 'a') as f:
+        f.write(f'\nset dd 5 "initial_domains.txt"\n') # 5 is file decomposition
 
 #%% Change positions, universes and radii based on input
 
@@ -155,7 +158,7 @@ if not discrete_motion:
 
     data['r_dist'] = np.linalg.norm(data[['x', 'y']], axis=1)
     time_per_pass = data.shape[0]/circulation_rate
-
+    
 # Discrete motion: import from pbed file, assign row/column ID and make motion matrix
 else:
     print(f'Using discrete motion')
@@ -183,9 +186,20 @@ if not restart_calculation:
         data['uni'] = assign_random_array(np.arange(len(data)), [fuel_pebble_universe_name, graph_pebble_universe_name], [fuel_frac, 1-fuel_frac]) # Spl
     else:
         data['uni'] = fuel_pebble_universe_name
+    data['fuel'] = ['fuel' in u for u in data['uni']]
 else:
     data.loc[data['fuel'], 'uni']  = fuel_pebble_universe_name
     data.loc[~data['fuel'], 'uni'] = graph_pebble_universe_name
+
+# Domain decomposition
+
+if domain_decomposition:
+    first_pbed = Pebble_bed()
+    first_pbed.read_dataframe(data)
+    first_pbed.decompose_in_domains(decomposition_domains, decomposition_types)
+    first_pbed.data.loc[data['fuel'], 'domain_id'].astype(int).to_csv('initial_domains.txt', index=False, header=False)
+    data.loc[data['fuel'], 'domain_id'] = first_pbed.data.loc[data['fuel'], 'domain_id']
+
 # Save
 data[['x','y','z','r','uni']].to_csv(pbed_file, header=False, index=False, sep='\t')
 data['r_dist'] = np.linalg.norm(data[['x', 'y']], axis=1)
@@ -237,8 +251,6 @@ serpent.set_current_time(curr_time) # Communicate to Serpent
 fuel_indices = np.array([int(name.split(f'{fuel_mat_name}z')[-1]) for name in natural_sort(Serpent_get_values('materials', serpent)) if f'{fuel_mat_name}z' in name]) # Indices for fuel pebbles (=row numbers in pbed file)
 nuclides_list = list(Serpent_get_values(f'composition_{fuel_mat_name}z{fuel_indices[0]}_zai', serpent)) # List of nuclides in fuel
 fresh_fuel = Serpent_get_values(f'composition_{fuel_mat_name}z{fuel_indices[0]}_adens', serpent) # Fresh fuel composition
-if domain_decomposition:
-    initial_domains = Serpent_get_values(f"material_div_{fuel_mat_name}_domain", serpent) # Initial domains for each pebble
 
 #%% Create transferrables, which will be callable during calculation (Serpent <=> Python)
 
@@ -295,6 +307,8 @@ pbed = Pebble_bed(verbose=False)
 pbed.read_dataframe(pd.DataFrame(data[['x','y','z','r']], columns=[*'xyzr'])) # Read first positions
 pbed.data['id'] = data['id']
 pbed.data['fuel'] = ['fuel' in u for u in data['uni']]
+if domain_decomposition:
+    pbed.data.loc[pbed.data['fuel'], 'domain_id'] = data['domain_id']
 
 # Initialize columns with default values
 pbed.data['initial'] = 1 # Initial pebbles (=1) should not be considered for discarded pebbles, for instance
@@ -339,10 +353,6 @@ pbed.data.loc[pbed.data['fuel'], 'burnup'] = Serpent_get_values(tra['bu_out'])
 for name in inventory_names:
     pbed.data.loc[pbed.data['fuel'], name] = Serpent_get_values(tra[name])
 
-# Domain decomposition
-if domain_decomposition:
-    pbed.data.loc[pbed.data['fuel'], 'domain_id'] = initial_domains # Monitor which domain pebbles are in
-
 #%% Initialize secondary information to get at each step
 
 pbed.cycle_hist = pd.DataFrame(columns=['time', 'passes', 'recirculated', 'discarded', 'keff', 'keff_relative_uncertainty', 'keff_absolute_uncertainty']) # keff at each time step
@@ -352,6 +362,21 @@ if 'uni' in pbed.discarded_data.columns:
 pbed.reinserted_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','fuel','recirculated','discarded']+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))) # Re-inserted pebbles data
 pbed.reinserted_fuel_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','fuel','recirculated','discarded']+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))) # Re-inserted pebbles data, only fuel pebbles
 pbed.tracked_reinserted_nuclide = pd.DataFrame() # added for ML project
+
+
+# cmap = cm.get_cmap('turbo')
+# cmap.set_bad([0.8, 0.8, 0.8], alpha = 1.) # nans will appear gray
+# plt.figure(figsize=(11.5, 15))
+# plt.subplot(2,2,1)
+# pbed.plot2D('id', field_title='Pebble ID', plot_title=f'Step {step}: {curr_time/DAYS:.1f} days', colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed.data['id'].max()], verbose=False)
+# plt.subplot(2,2,2)
+# pbed.plot2D('domain_id', field_title='Pass residence time [days]', plot_title='', colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed.data['domain_id'].max()], verbose=False)
+# plt.subplot(2,2,3)
+# pbed.plot2D('id', 'z', field_title='Pebble ID', plot_title=f'Step {step}: {curr_time/DAYS:.1f} days', colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed.data['id'].max()], verbose=False)
+# plt.subplot(2,2,4)
+# pbed.plot2D('domain_id', 'z', field_title='Pass residence time [days]', plot_title='', colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed.data['domain_id'].max()], verbose=False)
+
+# plt.savefig(f'Plots/ini_core_{step}.png', dpi=400, bbox_inches='tight')# save to output
 
 #%% Main loop
 for step in range(first_step, Nsteps):
@@ -394,12 +419,12 @@ for step in range(first_step, Nsteps):
 
     #### First step, just run domain decomposition and transport if needed ####
     if step == first_step:
-        # Decompose in domains and transfer pebbles which change domains
-        if domain_decomposition:
-            pbed.decompose_in_domains(decomposition_domains, decomposition_types)
-            changing_domain = (pbed.data[pbed.data['fuel']].domain_id != initial_domains)
-            print(f'\tTo change domain: {changing_domain.sum()}')
-            Serpent_set_values(tra['domain_in'], pbed.data[pbed.data['fuel']].domain_id)
+        # # Decompose in domains and transfer pebbles which change domains
+        # if domain_decomposition:
+        #     pbed.decompose_in_domains(decomposition_domains, decomposition_types)
+        #     changing_domain = (pbed.data[pbed.data['fuel']].domain_id != initial_domains)
+        #     print(f'\tTo change domain: {changing_domain.sum()}')
+        #     Serpent_set_values(tra['domain_in'], pbed.data[pbed.data['fuel']].domain_id)
 
         # Transport step. Not mandatory, only if using no-burnup or specifying to solve first transport
         if transport:

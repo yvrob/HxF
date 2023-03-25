@@ -109,13 +109,13 @@ mat FLiBeInC -1.97 rgb 127 255 212 tmp 900
   9019.09c    4
 %
 % Reflector contains 10 percent flibe %
-mat reflector  -1.74 tmp 900 moder  grph 6000
+mat reflector  -1.74 tmp 900 moder  grph 6000  rgb 150 150 150
  6000.09c   -1.0
-mat reflectorT -1.74 tmp 900 moder  grph 6000
+mat reflectorT -1.74 tmp 900 moder  grph 6000  rgb 150 150 150
  6000.09c   -1.0
-mat reflectorB -1.74 tmp 900 moder  grph 6000
+mat reflectorB -1.74 tmp 900 moder  grph 6000  rgb 150 150 150
  6000.09c   -1.0
-mat reflectorS -1.74 tmp 900 moder  grph 6000
+mat reflectorS -1.74 tmp 900 moder  grph 6000 rgb 150 150 150
  6000.09c   -1.0
 %
 therm grph 900 gre6.18t gre6.20t

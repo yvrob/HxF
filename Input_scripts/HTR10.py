@@ -76,9 +76,8 @@ else:
         looper_method = 'xyz'
 
 #%% Outputing
-output_folder_name = 'HTR-10' # Name of the output folder
+output_folder_name = 'HTR-10_test' # Name of the output folder
 verbosity_mode = 3
-
 
 #%% Domain decomposition
 if domain_decomposition:

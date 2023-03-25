@@ -44,4 +44,4 @@ set bc 2
 
 % --- Neutron population: 5000 neutrons per cycle, 100 active / 20 inactive cycles
 set gcu -1
-set pop 1000 1 1
+set pop 10000 1 1
