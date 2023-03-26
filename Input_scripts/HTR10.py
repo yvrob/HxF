@@ -43,7 +43,7 @@ detector_names = ['flux_pebbles_thermal', 'flux_pebbles_fast', 'power_pebbles']
 power_normalization_field = 'power'
 power_normalization_value = 10e6 # W
 Nsteps = 1000
-neutrons_per_cycle = 200000  #*20 + [10000]*20 + [10000]*(Nsteps-20-20-50) + [50000]*50
+neutrons_per_cycle = 20000  #*20 + [10000]*20 + [10000]*(Nsteps-20-20-50) + [50000]*50
 decay_step = 0 # days
 
 #%% Burnup cycle

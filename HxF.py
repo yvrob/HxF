@@ -26,9 +26,9 @@ print(f"Starting calculation on: {date_str}\n")
 
 #%% Import pebble bed library and utilities
 print('Importing modules\n')
-from Utils.Pebble_Bed import *
-from Utils.Utilities import *
-from Utils.Looping import *
+from Source.Pebble_Bed import *
+from Source.Utilities import *
+from Source.Looping import *
 
 import pandas as pd
 import os
@@ -50,6 +50,7 @@ else:
     filename_input = 'Input'
 
 #%% Read input from file
+sys.path.append('Source')
 sys.path.append('Utils')
 default_parameters = importlib.import_module('Default_Input.py'.replace(".py", "").replace('./', '')).__dict__
 globals().update(default_parameters) # Will read all defaults parameters in input file and import them here

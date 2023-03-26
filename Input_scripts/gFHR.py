@@ -13,7 +13,7 @@ looping = False
 
 # Restart
 restart_calculation = False
-read_firt_compositions = False #True
+read_firt_compositions = True
 
 # Output
 plotting = True
@@ -77,7 +77,7 @@ else:
 
 #%% Outputing
 output_folder_name = 'gFHR_dm' # Name of the output folder
-verbosity_mode = 3
+verbosity_mode = 1
 
 
 #%% Domain decomposition

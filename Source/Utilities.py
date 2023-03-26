@@ -271,7 +271,7 @@ def init_case(case_name, python_input, path_to_case, output_name=None):
 	print(f'Creating folder at ./Cases/{output_name}/ and copying input')
 	for path_folder in [f'Cases/{output_name}/Plots/', f'Cases/{output_name}/Data/', f'Cases/{output_name}/Waste/', f'Cases/{output_name}/wrk_Serpent/']:
 		os.makedirs(path_folder, exist_ok=True)
-	for file in [python_input, 'Utils/Default_Input.py']:
+	for file in [python_input, 'Source/Default_Input.py']:
 		if file[-3:] != '.py':
 			file += '.py'
 		shutil.copy(file, f'Cases/{output_name}/')
