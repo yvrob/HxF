@@ -19,8 +19,10 @@ def start_Serpent(serpent_executable, ncores, input_files, nnodes=1, verbosity=1
 	if isinstance(input_files, str):
 		input_files = rec_Serpent_file_search(input_files)
 
-	print("Dummy Serpent")
-	child_comm = MPI.COMM_SELF.Spawn(serpent_executable, args=["tuto1"], maxprocs=nnodes - 1) # replace by dummy command that does not crash
+	if nnodes > 1:
+		# It seems that on Savio, SLURM needs another process to be spawned to make Cerberus understand it needs to book the right number of nodes
+		print("Dummy Serpent")
+		child_comm = MPI.COMM_SELF.Spawn(serpent_executable, args=["tuto1"], maxprocs=nnodes - 1) # replace by dummy command that does not crash
 
 	print("\nInitializing Serpent. Waiting...")
 	serpent = Solver("Serpent", serpent_executable, f"-port -omp {ncores}".split())

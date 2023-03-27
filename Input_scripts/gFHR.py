@@ -82,8 +82,8 @@ verbosity_mode = 1
 
 #%% Domain decomposition
 if domain_decomposition:
-    allowed_decomposition_types = 'ars'
-    max_domains = [6, 4, 10]
+    allowed_decomposition_types = 'rs'
+    max_domains = [6, 8]
 
 #%% Restart write
 if write_restart:

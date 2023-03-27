@@ -9,19 +9,13 @@ CONFIGURATION_FILE=$1
 source $CONFIGURATION_FILE
 
 # Export each variable
-for var in PYTHON_SCRIPT INPUT_SCRIPT CONFIGURATION_FILE CONDA_ENVIRONMENT NNODES SUFFIX_JOB PARTITION NHOURS GROUP_ACCOUNT QOS SERPENT_DATA SERPENT_ACELIB SERPENT_DECLIB SERPENT_NFYLIB SERPENT_EXE
+for var in PYTHON_SCRIPT INPUT_SCRIPT CONFIGURATION_FILE CONDA_ENVIRONMENT SERPENT_DATA SERPENT_ACELIB SERPENT_DECLIB SERPENT_NFYLIB SERPENT_EXE
 do
     export $var
 done
 
 ########################################### NO CHANGE NECESSARY BEYOND THAT POINT ###########################################
-# Set SLURM parameters
-export PARTITION_CPUS_PER_NODE=$(sinfo -p ${PARTITION} --Node --format="%C" | awk -F'/' '{print $1}' | sort -n | tail -n 1)
 export JOB_NAME=$(basename $INPUT_SCRIPT | cut -d. -f1)${SUFFIX_JOB}
-mkdir -p ./Logs
-export OUTPUT_FILE="./Logs/${JOB_NAME}${SUFFIX_JOB}.o"
-export ERROR_FILE="./Logs/${JOB_NAME}${SUFFIX_JOB}.err"
-export TIMELIMIT=$((${NHOURS}${SUFFIX_JOB} * 60))
 
 # Remove Serpent data if not existing
 for var in SERPENT_DATA SERPENT_ACELIB SERPENT_DECLIB SERPENT_NFYLIB; do
@@ -31,17 +25,18 @@ for var in SERPENT_DATA SERPENT_ACELIB SERPENT_DECLIB SERPENT_NFYLIB; do
 done
 
 # Print job information
-echo "Running HxF with the following parameters:"
+echo "Running HxF with 1 task with the following parameters:"
 echo "------------------------------------------------------"
 echo "Job name: ${JOB_NAME}"
 echo "Script: ${PYTHON_SCRIPT}"
 echo "Input script: ${INPUT_SCRIPT}"
-echo "Group account: ${GROUP_ACCOUNT} (QoS: ${QOS})"
-echo "Configuration: ${NNODES} x ${PARTITION} (max ${PARTITION_CPUS_PER_NODE} CPUs/node)"
 echo "Environment loaded from: ${CONFIGURATION_FILE} (conda environment: ${CONDA_ENVIRONMENT})"
 echo "Serpent path: ${SERPENT_EXE}"
 echo "Nuclear data path: ${SERPENT_DATA} (${SERPENT_ACELIB}, ${SERPENT_DECLIB}, ${SERPENT_NFYLIB})"
-echo "Time limit: ${NHOURS} hours"
 echo "------------------------------------------------------"
 
-sbatch -J $JOB_NAME -o $OUTPUT_FILE -e $ERROR_FILE -A $GROUP_ACCOUNT -c $PARTITION_CPUS_PER_NODE -q $QOS -p $PARTITION -N $NNODES -n $NNODES -t $TIMELIMIT --exclusive Utils/exe.sub
+# Load the environment
+source ${CONFIGURATION_FILE} ${CONDA_ENVIRONMENT}
+
+# Run the Python script
+python ${PYTHON_SCRIPT} ${INPUT_SCRIPT}

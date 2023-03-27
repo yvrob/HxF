@@ -106,7 +106,11 @@ atexit.register(os.chdir, original_path) # Come back to original folder when the
 
 #%% Domain decomposition
 if domain_decomposition:
-    decomposition_types, decomposition_domains = nodes_to_dd(nnodes, allowed_decomposition_types, max_domains)
+    if nnodes==1: # for debugging
+        ndomains=20
+    else:
+        ndomains=nnodes
+    decomposition_types, decomposition_domains = nodes_to_dd(ndomains, allowed_decomposition_types, max_domains)
     print(f'Using Domain Decomposition with domains of types "{decomposition_types}" and breakout {decomposition_domains}')
     # Add line for domain decomposition to the input
     with open(main_input_file, 'a') as f:
@@ -115,30 +119,33 @@ if domain_decomposition:
 #%% Change positions, universes and radii based on input
 
 # If restarting from a step, calculate equivalent step and positions
-if restart_calculation:
-    first_step = restart_step
-    print(f'Restarting from step {restart_step}, binary data at "{restart_binary}" and reading data at "{restart_data}".')
-    if not os.path.exists(restart_data):
-        raise Exception(f'Restart mode selected but no restart data table found at {restart_data}')
-    restart_files = glob(restart_binary+'*')
-    if len(restart_files)==0:
-        raise Exception(f'Restart mode selected but no restart binary found at {restart_binary}')
-    else:
-        nrestarts = len(restart_files) # count number of restart files
-    with open(main_input_file, 'a') as f:
-        f.write(f'\nset rfr idx 0 "{restart_binary}" {nrestarts}\n')
-else:
-    first_step = 0
-    if read_firt_compositions:
+if transport:
+    if restart_calculation:
+        first_step = restart_step
+        print(f'Restarting from step {restart_step}, binary data at "{restart_binary}" and reading data at "{restart_data}".')
         if not os.path.exists(restart_data):
-            raise Exception(f'First composition binary mode selected but no restart data table found at {restart_data}')
+            raise Exception(f'Restart mode selected but no restart data table found at {restart_data}')
         restart_files = glob(restart_binary+'*')
         if len(restart_files)==0:
-            raise Exception(f'First composition binary mode selected but no restart binary found at {restart_binary}')
+            raise Exception(f'Restart mode selected but no restart binary found at {restart_binary}')
         else:
             nrestarts = len(restart_files) # count number of restart files
         with open(main_input_file, 'a') as f:
             f.write(f'\nset rfr idx 0 "{restart_binary}" {nrestarts}\n')
+    else:
+        first_step = 0
+        if read_firt_compositions:
+            if not os.path.exists(restart_data):
+                raise Exception(f'First composition binary mode selected but no restart data table found at {restart_data}')
+            restart_files = glob(restart_binary+'*')
+            if len(restart_files)==0:
+                raise Exception(f'First composition binary mode selected but no restart binary found at {restart_binary}')
+            else:
+                nrestarts = len(restart_files) # count number of restart files
+            with open(main_input_file, 'a') as f:
+                f.write(f'\nset rfr idx 0 "{restart_binary}" {nrestarts}\n')    
+else:
+    first_step = 0
 
 # DEM motion: import first DEM positions
 if not discrete_motion:
