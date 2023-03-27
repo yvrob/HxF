@@ -21,7 +21,7 @@ export JOB_NAME=$(basename $INPUT_SCRIPT | cut -d. -f1)${SUFFIX_JOB}
 mkdir -p ./Logs
 export OUTPUT_FILE="./Logs/${JOB_NAME}${SUFFIX_JOB}.o"
 export ERROR_FILE="./Logs/${JOB_NAME}${SUFFIX_JOB}.err"
-export TIMELIMIT=$((${NHOURS}${SUFFIX_JOB} * 60))
+export TIMELIMIT=$((${NHOURS} * 60))
 
 # Remove Serpent data if not existing
 for var in SERPENT_DATA SERPENT_ACELIB SERPENT_DECLIB SERPENT_NFYLIB; do
