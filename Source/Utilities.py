@@ -3,7 +3,6 @@ import shutil
 import numpy as np
 from glob import glob
 import re
-import pickle
 import matplotlib.pyplot as plt
 import subprocess
 import sys
@@ -11,7 +10,6 @@ import pandas as pd
 from cerberus.solvers import CodeInput, Solver
 import cerberus as cb
 import time
-from mpi4py import MPI
 
 def start_Serpent(serpent_executable, ncores, input_files, nnodes=1, verbosity=1):
 	cb.LOG.set_verbosity(verbosity)
@@ -22,6 +20,7 @@ def start_Serpent(serpent_executable, ncores, input_files, nnodes=1, verbosity=1
 	if nnodes > 1:
 		# It seems that on Savio, SLURM needs another process to be spawned to make Cerberus understand it needs to book the right number of nodes
 		print("Dummy Serpent")
+		from mpi4py import MPI
 		child_comm = MPI.COMM_SELF.Spawn(serpent_executable, args=["tuto1"], maxprocs=nnodes - 1) # replace by dummy command that does not crash
 
 	print("\nInitializing Serpent. Waiting...")
@@ -510,6 +509,7 @@ def estimate_burnup(z, zlim, direction, pass_number, max_passes, max_bu):
 	return bu
 
 def load_interpolator(interpolator_path, to_replace=[666], replace_value=[-1]):
+	import pickle
 	with open(interpolator_path, 'rb') as f:
 		interpolator, zai_interpolator = pickle.load(f)
 	zai_interpolator = np.array(zai_interpolator).astype(int)
@@ -647,19 +647,33 @@ def natural_sort(l):
 def xyzr_to_array(xyzr):
 	return xyzr.reshape((-1, 4))
 
+def get_domain_candidates(nnodes, max_domains):
+    candidates = []
+    def generate_combinations(index, product, combination):
+        if index == len(max_domains):
+            if product == nnodes:
+                candidates.append(combination)
+            return
+        for i in range(1, max_domains[index]+1):
+            if product * i > nnodes:
+                break
+            generate_combinations(index+1, product*i, combination+[i])
+    generate_combinations(0, 1, [])
+    return candidates
+
+
 def nodes_to_dd(nnodes, allowed_decomposition_types, max_domains):
-	candidates = []
-	for i in range(1, max_domains[2]+1):
-		for j in range(1, max_domains[1]+1):
-			for k in range(1, max_domains[0]+1):
-				if nnodes == i*j*k:
-					candidates.append([k,j,i])
+	candidates = get_domain_candidates(nnodes, max_domains)
+	print(candidates, max_domains, nnodes)
 	best_score = 0
 	for c in candidates:
-		score = c[2]+c[1]**2+c[0]**3
+		score = np.sum(np.power(c, np.arange(len(c), 0, -1)))
 		if score > best_score:
 			best_score = float(score)
 			best_candidate = list(c)
+
+	if candidates==0:
+		raise Exception(f"No configuration in {max_domains} can make exactly {nnodes} nodes.")
 
 	decomposition_types = []
 	decomposition_domains = []

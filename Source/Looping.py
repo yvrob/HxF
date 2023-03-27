@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import re
-import scipy.optimize
 
 #%% Functions
 def natural_sort(l):
@@ -65,6 +64,7 @@ def match_equal_zones(zones1, zones2, zones_indices2):
     return zones1, zones2, zones_indices2
 
 def match_points(points1, points2, method='rz'):
+    import scipy.optimize
     if method == 'xyz':
         cost = np.linalg.norm(points2[['x', 'y', 'z']].values[:, np.newaxis, :] - points1[['x', 'y', 'z']].values, axis=2)
     elif method == 'rz':

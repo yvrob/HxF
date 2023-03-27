@@ -17,11 +17,14 @@ done
 ########################################### NO CHANGE NECESSARY BEYOND THAT POINT ###########################################
 # Set SLURM parameters
 export PARTITION_CPUS_PER_NODE=$(sinfo -p ${PARTITION} --Node --format="%C" | awk -F'/' '{print $1}' | sort -n | tail -n 1)
-export JOB_NAME=$(basename $INPUT_SCRIPT | cut -d. -f1)_${SUFFIX_JOB}
+if [ -n "$SUFFIX_JOB" ]; then
+  SUFFIX_JOB="_${SUFFIX_JOB}"
+fi
+export JOB_NAME=$(basename $INPUT_SCRIPT | cut -d. -f1)${SUFFIX_JOB}
 mkdir -p ./Logs
-export OUTPUT_FILE="./Logs/${JOB_NAME}_${SUFFIX_JOB}.o"
-export ERROR_FILE="./Logs/${JOB_NAME}_${SUFFIX_JOB}.err"
-export TIMELIMIT=$((${NHOURS} * 60))
+export OUTPUT_FILE="./Logs/${JOB_NAME}${SUFFIX_JOB}.o"
+export ERROR_FILE="./Logs/${JOB_NAME}${SUFFIX_JOB}.err"
+export TIMELIMIT=$(date -u -d@$(printf "%.0f" $(echo "${NHOURS}*3600" | bc -l)) +%T)
 
 # Remove Serpent data if not existing
 for var in SERPENT_DATA SERPENT_ACELIB SERPENT_DECLIB SERPENT_NFYLIB; do

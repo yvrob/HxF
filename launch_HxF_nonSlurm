@@ -15,7 +15,10 @@ do
 done
 
 ########################################### NO CHANGE NECESSARY BEYOND THAT POINT ###########################################
-export JOB_NAME=$(basename $INPUT_SCRIPT | cut -d. -f1)_${SUFFIX_JOB}
+if [ -n "$SUFFIX_JOB" ]; then
+  SUFFIX_JOB="_${SUFFIX_JOB}"
+fi
+export JOB_NAME=$(basename $INPUT_SCRIPT | cut -d. -f1)${SUFFIX_JOB}
 
 # Remove Serpent data if not existing
 for var in SERPENT_DATA SERPENT_ACELIB SERPENT_DECLIB SERPENT_NFYLIB; do

@@ -1,4 +1,3 @@
-import serpentTools
 import pandas as pd
 import numpy as np
 from matplotlib.patches import Circle
@@ -12,7 +11,7 @@ from copy import deepcopy
 from glob import glob
 import matplotlib.image as mpimg
 import os
-import difflib
+
 #%matplotlib widget
 
 class Pebble_bed:
@@ -171,6 +170,7 @@ class Pebble_bed:
     #### POST PROCESSING ####
 
     def read_results(self, res_file_path):
+        import serpentTools
         if not hasattr(self, 'results'):
             self.results = dict()
         res_reader = serpentTools.read(res_file_path)
@@ -279,6 +279,7 @@ class Pebble_bed:
         log_print(f'Done.', verbose, level, log_delim, end_block=True)
 
     def read_detector(self, det_file_path, which_dets='all', suffix='', verbose=True, level=0, log_delim='  '):
+        import serpentTools
         log_print(f'Reading det file from {det_file_path}', verbose, level, log_delim)
         det_reader = serpentTools.read(det_file_path, reader='det')
         if not hasattr(self, 'detector_names'):
@@ -322,6 +323,7 @@ class Pebble_bed:
         log_print(f'Done.', verbose, level, log_delim, end_block=True)
 
     def read_depletion(self, dep_file_path, material_name, dd=False, global_concentration=True, steps='all', fields='all', verbose=True, level=0, log_delim='  '):
+        import serpentTools
         if dd:
             if dep_file_path[-2:] == '.m':
                 dep_file_path = dep_file_path[:-2]
@@ -1867,6 +1869,7 @@ def find_matching(string, list_strings, infer_if_incorrect=True, lower_ok=True, 
 
     if search_parameter not in keys:
         if infer_if_incorrect:
+            import difflib
             match_string = difflib.get_close_matches(search_parameter, keys, cutoff=cutoff, n=100000)
             if len(match_string) == 0:
                 return None

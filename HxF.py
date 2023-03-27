@@ -218,6 +218,7 @@ Npebbles = len(data['r'])
 Nfuel = sum(['fuel' in u for u in data['uni']])
 
 # Prepare case
+data.to_csv('first_data.csv')
 serpent, serpent_input_files = start_Serpent(os.environ["SERPENT_EXE"], ncores, main_input_file, nnodes, verbosity_mode)
 nplots = count_plots(serpent_input_files) # count number of plot commands in input files
 
@@ -385,7 +386,7 @@ pbed.tracked_reinserted_nuclide = pd.DataFrame() # added for ML project
 # pbed.plot2D('domain_id', 'z', field_title='Pass residence time [days]', plot_title='', colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed.data['domain_id'].max()], verbose=False)
 
 # plt.savefig(f'Plots/ini_core_{step}.png', dpi=400, bbox_inches='tight')# save to output
-
+pbed.data.to_csv('second_data.csv')
 #%% Main loop
 for step in range(first_step, Nsteps):
     #### Set up step ####
