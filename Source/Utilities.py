@@ -484,7 +484,7 @@ def assign_random_array(source_list, possible_values, proportions='equal'):
 	else:
 		proportions = np.array(proportions) / np.sum(proportions)
 		random_list = np.random.permutation(np.arange(len(source_list)))
-		ind = np.add.accumulate(np.array(proportions) * len(random_list)).astype(int)
+		ind = np.add.accumulate(np.array(proportions) * len(random_list)).round(8).astype(int)
 		shuffled_list = [x.tolist() for x in np.split(random_list, ind)][:len(proportions)]
 	array = np.empty(len(source_list), dtype=np.array(possible_values).dtype)
 	for i, val in enumerate(possible_values):

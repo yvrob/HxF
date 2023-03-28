@@ -52,7 +52,7 @@ threshold = 8
 
 #%% Motion
 motion_direction = +1
-recirc_threshold = 50 # cm, absolute value
+recirc_threshold = 1 # cm, absolute value
 
 # Discrete motion
 if discrete_motion:

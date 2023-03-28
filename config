@@ -13,7 +13,7 @@ GROUP_ACCOUNT="fc_neutronics" # Name of the account to use (e.g. co_nuclear, fc_
 PARTITION="savio3" # Name of partition (e.g. savio, savio2, savio3, savio2_bigmem, ...)
 NNODES=8 # Number of nodes to use
 QOS="savio_normal" # QoS associated to group account (savio_normal for fc_neutronics, nuclear_savio_normal for co_nuclear)
-NHOURS=0.2 # Time limit in hours for the job
+NHOURS=0.5 # Time limit in hours for the job
 SUFFIX_JOB="" # Suffix (if needed) for the job name, otherwise takes the name of the Python input script
 
 # Serpent variables

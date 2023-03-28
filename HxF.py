@@ -143,7 +143,7 @@ if transport:
             else:
                 nrestarts = len(restart_files) # count number of restart files
             with open(main_input_file, 'a') as f:
-                f.write(f'\nset rfr idx 0 "{restart_binary}" {nrestarts}\n')    
+                f.write(f'\nset rfr idx 0 "{restart_binary}" {nrestarts}\n')
 else:
     first_step = 0
 
@@ -166,7 +166,7 @@ if not discrete_motion:
 
     data['r_dist'] = np.linalg.norm(data[['x', 'y']], axis=1)
     time_per_pass = data.shape[0]/circulation_rate
-    
+
 # Discrete motion: import from pbed file, assign row/column ID and make motion matrix
 else:
     print(f'Using discrete motion')
@@ -191,7 +191,7 @@ print()
 if not restart_calculation:
     print(f'Assigning random universes with fuel fraction of {fuel_frac*100:.2f}%\n')
     if fuel_frac != 1:
-        data['uni'] = assign_random_array(np.arange(len(data)), [fuel_pebble_universe_name, graph_pebble_universe_name], [fuel_frac, 1-fuel_frac]) # Spl
+        data['uni'] = assign_random_array(np.arange(len(data)), [fuel_pebble_universe_name, graph_pebble_universe_name], [fuel_frac, 1-fuel_frac]) # Split into fuel and non-fuel
     else:
         data['uni'] = fuel_pebble_universe_name
     data['fuel'] = ['fuel' in u for u in data['uni']]
@@ -326,7 +326,7 @@ pbed.data['recirculated'] = False # Monitor which pebbles just recirculated at e
 pbed.data['discarded'] = False # Monitor which pebbles should be discarded at each step
 pbed.data['residence_time'] = 0.0 # Monitor total residence time
 pbed.data['pass_residence_time'] = 0.0 # Monitor residence time for the current pass
-pbed.data.loc[pbed.data['fuel'], 'burnup'] = 0 # Monitor burnup
+pbed.data.loc[pbed.data['fuel'], 'burnup'] = 0.0 # Monitor burnup
 pbed.data.loc[pbed.data['fuel'], 'pass_burnup'] = 0.0 # Monitor burnup for the current pass
 pbed.data['insertion_step'] = 0 # Monitor when pebbles were inserted
 pbed.data['avg_r_dist'] = np.array(pbed.data['r_dist']) # Monitor where pebble are radially, on average
@@ -356,7 +356,7 @@ else:
 #%% Communicate some data from Serpent (checking purpose, threshold, and filling data for restart)
 
 # Burnup
-pbed.data.loc[pbed.data['fuel'], 'burnup'] = Serpent_get_values(tra['bu_out'])
+pbed.data.loc[pbed.data['fuel'], 'burnup'] = Serpent_get_values(tra['bu_out']).astype(float)
 
 # Initialize columns for each isotope in inventory
 for name in inventory_names:
@@ -455,15 +455,13 @@ for step in range(first_step, Nsteps):
             zrows = np.unique(new_positions['z'])
 
             # Shuffle recirculating, line by line
-            for i in range(len(zrows[::2])):
-                if motion_direction * zrows[i] > motion_direction * zlim:
-                    new_positions.loc[(new_positions['z']-zrows[i]).abs()<1e-3] = new_positions.loc[(new_positions['z']-zrows[i]).abs()<1e-3].sample(frac=1).values
-                if motion_direction * zrows[i+1] > motion_direction * zlim:
-                    new_positions.loc[(new_positions['z']-zrows[i+1]).abs()<1e-3] = new_positions.loc[(new_positions['z']-zrows[i+1]).abs()<1e-3].sample(frac=1).values
+            for i in range(0, len(zrows[::2])):
+                if motion_direction * zrows[2*i] > motion_direction * zlim:
+                    beyond_lim = (((new_positions['z']-zrows[2*i]).abs()<1e-3) | ((new_positions['z']-zrows[2*i+1]).abs()<1e-3))
+                    new_positions[beyond_lim] = new_positions[beyond_lim].sample(frac=1).values
 
             # Shift pebbles that should recirculate
             new_positions.loc[motion_direction * new_positions['z'] >= motion_direction * zlim, 'z'] += -motion_direction*(np.abs(zrows[-1]-zrows[0]+(zrows[1]-zrows[0])))
-
         else:
             # Move pebbles (DEM case), loop if necessary
             nsteps_to_loop = (DEM_end-DEM_start)/DEM_step_increment # won't work if different step increments! after how many steps do we loop
@@ -497,14 +495,18 @@ for step in range(first_step, Nsteps):
             Serpent_set_values(tra['domain_in'], pbed.data[pbed.data['fuel']].domain_id)
 
         # Detect recirculated pebbles based on z increment between new and old data
-        print(f'\tRecirculation criterion: deltaZ >= {recirc_threshold} cm')
-        pbed.data['recirculated'] = (-motion_direction*(pbed.data['z'] - pbed.old_data['z']) >= recirc_threshold) # select recirculated pebbles (deltaZ > threshold)
+        if discrete_motion:
+            recirc_threshold=0
+        print(f'\tRecirculation criterion: deltaZ {"< -" if motion_direction==+1 else ">"} {recirc_threshold} cm')
+        pbed.data['recirculated'] = (-motion_direction*(pbed.data['z'] - pbed.old_data['z']) > recirc_threshold) # select recirculated pebbles (deltaZ > threshold)
+        pbed.data.loc[pbed.data['recirculated'], 'passes'] += 1 # Rercirculating pebbles have an incremented pass
         Nrecirculated = pbed.data["recirculated"].sum()
         print(f'\t\t{Nrecirculated} pebbles to recirculate\n')
 
         # Detect discarded pebbles based on set threshold
         print(f'\tDiscard criterion: {threshold_type} > {threshold}')
         pbed.data.loc[pbed.data['recirculated'] & (pbed.data[threshold_type] > threshold), 'discarded'] = True
+        pbed.data.loc[pbed.data['discarded'], 'passes'] -= 1 # pebbles that were discarded need the incremented pass removed before saving
         Ndiscarded = pbed.data["discarded"].sum()
         print(f'\t\t{Ndiscarded} pebbles to discard\n')
 
@@ -547,7 +549,7 @@ for step in range(first_step, Nsteps):
                 pbed.data.loc[pbed.data['discarded'], f'integrated_{name}_unc'] = 0.0
 
         pbed.data.loc[pbed.data['discarded'], 'insertion_step'] = step # set insertion step of fresh pebble to current step
-        pbed.data.loc[pbed.data['discarded'], 'residence_time'] = 0 # reset residence time to 0
+        pbed.data.loc[pbed.data['discarded'], 'residence_time'] = 0.0 # reset residence time to 0
         pbed.data.loc[pbed.data['discarded'], 'passes'] = 1 # reset number of passes to 1
         pbed.data.loc[pbed.data['discarded'], 'initial'] = 0 # once replaced at least once, pebbles are not initial anymore
 
@@ -559,8 +561,7 @@ for step in range(first_step, Nsteps):
             pbed.reinserted_data.loc[pbed.data['discarded'], i] = fresh_fuel[nuclides_list.index(int(i))]
             pbed.reinserted_fuel_data.loc[pbed.data['discarded'], i] = fresh_fuel[nuclides_list.index(int(i))]
 
-        # Reset recirculated data
-        pbed.data.loc[pbed.data['recirculated'], 'passes'] += 1 # add one pass
+        # Reset pass-dependent variables for recirculated data
         pbed.data.loc[pbed.data['recirculated'], 'pass_residence_time'] = 0.0 # reset pass residence time
         pbed.data.loc[pbed.data['recirculated'], 'pass_burnup'] = 0.0 # reset pass burnup
         pbed.data.loc[pbed.data['recirculated'], 'agg_r_dist_pass'] = 0.0
@@ -590,7 +591,7 @@ for step in range(first_step, Nsteps):
 
     if transport:
         # Extract burnups and calculate pass burnup
-        pbed.data.loc[pbed.data['fuel'], 'burnup'] = Serpent_get_values(tra['bu_out'])
+        pbed.data.loc[pbed.data['fuel'], 'burnup'] = Serpent_get_values(tra['bu_out']).astype(float)
         if step > 0:
             # Pass burnup incremented for fuel pebbles
             pbed.data.loc[(pbed.data['fuel'] & (~pbed.data['recirculated'])), 'pass_burnup'] += pbed.data.loc[pbed.data['fuel'], 'burnup'] - pbed.old_data.loc[pbed.data['fuel'], 'burnup']

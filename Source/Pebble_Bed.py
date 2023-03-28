@@ -1570,7 +1570,7 @@ class Pebble_bed:
 
     #### DOMAIN DECOMPOSITION ####
 
-    def decompose_in_domains(self, n_domains_list, decomposition_types, filling_domain=None, center=None, shift_sectors=0, keep_subdomains=True, verbose=True, level=0, log_delim='  '):
+    def decompose_in_domains(self, n_domains_list, decomposition_types, filling_domain=None, center=None, shift_sectors=0, keep_subdomains=False, verbose=True, level=0, log_delim='  '):
         to_drop = [i for i in self.data.columns if 'domain_id' in i]
         if len(to_drop)>0:
             self.data.drop(columns=to_drop, inplace=True)
