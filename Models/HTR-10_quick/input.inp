@@ -3,7 +3,7 @@ set Cerberus_verbosity 0
 
 % Transport calculation
 set pop 1000 100 20
-set ures 1
+%set ures 1
 
 % Burnup calculation
 set pcc 0
@@ -12,14 +12,14 @@ dep butot 10.8
 div fuel peb u_pb 1 u_fuel_pebble % to use if using version 2.2.0
 %div fuel sep 4 % to use if using version <2.2.0
 set bumode 2 16
-set inventory 922350 922380 942390 942410 541350 551370
+%set inventory 922350 922380 942390 942410 541350 551370
 
 % Detectors
-det flux_pebbles_thermal dl u_pb de Ethermal dv 113.09733552923254
-det flux_pebbles_fast    dl u_pb de Efast dv 113.09733552923254
-det power_pebbles dl u_pb dr -8 void
-ene Ethermal 1 1E-11 1.86E-6
-ene Efast 1 0.1 20
+%det flux_pebbles_thermal dl u_pb de Ethermal dv 113.09733552923254
+%det flux_pebbles_fast    dl u_pb de Efast dv 113.09733552923254
+%det power_pebbles dl u_pb dr -8 void
+%ene Ethermal 1 1E-11 1.86E-6
+%ene Efast 1 0.1 20
 
 % Performance/memory
 set opti 1

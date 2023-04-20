@@ -19,6 +19,12 @@ DEM_step_increment = 1
 verbosity_mode = 0
 plotting = True
 saving = True
+write_global = True
+write_incore = True
+write_reinserted = True
+write_discarded = True
+write_discharged = True
+inventory_names = ""
 
 #%% Domain decomposition
 domain_decomposition = False

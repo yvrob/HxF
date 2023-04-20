@@ -98,13 +98,13 @@ mat pebshell -1.74   rgb  255 215   0   tmp 900    moder  grph 6000
 % FLiBe
 %NS@KP please check density, temperature changed
 mat FLiBe -1.97 rgb 127 255 212 tmp 900
-  3007.09c    1.9999
-  3006.09c    0.0001
+  3007.09c    1.999950
+  3006.09c    0.000050
   4009.09c    1 
   9019.09c    4
 mat FLiBeInC -1.97 rgb 127 255 212 tmp 900
-  3007.09c    1.9999
-  3006.09c    0.0001
+  3007.09c    1.999950
+  3006.09c    0.000050
   4009.09c    1 
   9019.09c    4
 %

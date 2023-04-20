@@ -2,7 +2,14 @@
 
 # Load necessary modules
 echo "Loading modules..."
-module unload python gcc cmake nano
+module_list=("python" "gcc" "cmake" "nano")
+for module in "${module_list[@]}"
+do
+    if [ $(module list 2>&1 | grep "$module/" | wc -l) > 0 ]
+    then
+        module unload $module_to_unload
+    fi
+done
 module load python/3.8.8 gcc openmpi cmake/3.22.0 nano
 
 # Initialize Conda environment

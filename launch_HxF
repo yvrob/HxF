@@ -6,6 +6,9 @@ if [ $# -lt 1 ]; then
   exit 1
 fi
 CONFIGURATION_FILE=$1
+
+########################################### NO CHANGE NECESSARY BEYOND THAT POINT ###########################################
+
 source $CONFIGURATION_FILE
 
 # Export each variable
@@ -14,9 +17,8 @@ do
     export $var
 done
 
-########################################### NO CHANGE NECESSARY BEYOND THAT POINT ###########################################
 # Set SLURM parameters
-export PARTITION_CPUS_PER_NODE=$(sinfo -p ${PARTITION} --Node --format="%C" | awk -F'/' '{print $1}' | sort -n | tail -n 1)
+export PARTITION_CPUS_PER_NODE=$(sinfo -p ${PARTITION} --Node --format="%C" | sed 's/[^0-9\/]*//g' | tr '/' '\n' | sort -n | tail -n 1)
 if [ -n "$SUFFIX_JOB" ]; then
   SUFFIX_JOB="_${SUFFIX_JOB}"
 fi
@@ -24,7 +26,8 @@ export JOB_NAME=$(basename $INPUT_SCRIPT | cut -d. -f1)${SUFFIX_JOB}
 mkdir -p ./Logs
 export OUTPUT_FILE="./Logs/${JOB_NAME}${SUFFIX_JOB}.o"
 export ERROR_FILE="./Logs/${JOB_NAME}${SUFFIX_JOB}.err"
-export TIMELIMIT=$(date -u -d@$(printf "%.0f" $(echo "${NHOURS}*3600" | bc -l)) +%T)
+SECONDS=$((NHOURS * 3600))
+export TIMELIMIT=$(printf '%02d:%02d:%02d\n' $(($SECONDS/3600)) $(($SECONDS%3600/60)) $(($SECONDS%60)))
 
 # Remove Serpent data if not existing
 for var in SERPENT_DATA SERPENT_ACELIB SERPENT_DECLIB SERPENT_NFYLIB; do
@@ -46,5 +49,4 @@ echo "Serpent path: ${SERPENT_EXE}"
 echo "Nuclear data path: ${SERPENT_DATA} (${SERPENT_ACELIB}, ${SERPENT_DECLIB}, ${SERPENT_NFYLIB})"
 echo "Time limit: ${NHOURS} hours"
 echo "------------------------------------------------------"
-
 sbatch -J $JOB_NAME -o $OUTPUT_FILE -e $ERROR_FILE -A $GROUP_ACCOUNT -c $PARTITION_CPUS_PER_NODE -q $QOS -p $PARTITION -N $NNODES -n $NNODES -t $TIMELIMIT --exclusive Utils/exe.sub

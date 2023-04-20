@@ -5,14 +5,14 @@
 transport = True
 resolve_first = True
 correct = False
-domain_decomposition = False
+domain_decomposition = True
 
 # Motion
-discrete_motion = False
-looping = True
+discrete_motion = True
+looping = False
 
 # Restart
-restart_calculation = True
+restart_calculation = False
 read_firt_compositions = False
 
 # Output
@@ -22,16 +22,16 @@ write_restart = True
 
 #%% Case
 path_to_case = './Models' # Path to input folder parent
-case_name = 'HTR-10' # Name of the input folder
-main_input_file = 'input.inp' # Name of the main input file
+case_name = 'gFHR' # Name of the input folder
+main_input_file = 'input' # Name of the main input file
 
 #%% Serpent data (from Serpent input)
 
 # Pebbles
-pbed_file = 'HTR-10_0.inp'
-r_pebbles = 3 # cm
+pbed_file = 'fpb_pos'
+r_pebbles = 2 # cm
 fuel_mat_name = 'fuel'
-fuel_frac = 0.57
+fuel_frac = 0.2 #1
 fuel_pebble_universe_name = 'u_fuel_pebble'
 graph_pebble_universe_name = 'u_graph_pebble'
 
@@ -41,18 +41,18 @@ detector_names = ['flux_pebbles_thermal', 'flux_pebbles_fast', 'power_pebbles']
 
 #%% Depletion steps
 power_normalization_field = 'power'
-power_normalization_value = 10e6*0.6 # W
-Nsteps = 1000
-neutrons_per_cycle = 200000  #*20 + [10000]*20 + [10000]*(Nsteps-20-20-50) + [50000]*50
+power_normalization_value = 280e6 # W
+Nsteps = 60+120+500
+neutrons_per_cycle = 1000
 decay_step = 0 # days
 
 #%% Burnup cycle
-threshold_type = 'burnup'
-threshold = 72
+threshold_type = 'passes'
+threshold = 8
 
 #%% Motion
-motion_direction = -1
-recirc_threshold = 200 # cm, absolute value
+motion_direction = +1
+recirc_threshold = 1 # cm, absolute value
 
 # Discrete motion
 if discrete_motion:
@@ -76,18 +76,18 @@ else:
         looper_method = 'xyz'
 
 #%% Outputing
-output_folder_name = 'HTR-10_restart_P0.6T1' # Name of the input folder
-verbosity_mode = 3
+output_folder_name = 'gFHR_fast' # Name of the output folder
+verbosity_mode = 0
 
 
 #%% Domain decomposition
 if domain_decomposition:
-    allowed_decomposition_types = 'ars'
-    max_domains = [6, 4, 10]
+    allowed_decomposition_types = 'rs'
+    max_domains = [6, 8]
 
 #%% Restart write
 if write_restart:
-    restart_write_every = 10
+    restart_write_every = 5
 
 #%% Restart read
 if restart_calculation:
@@ -95,6 +95,5 @@ if restart_calculation:
     restart_data = '/global/scratch/users/yvesrobert/HTR-10_latest/Cases/HTR-10_P1_T1/Data/data_650.csv'
     restart_binary = '/global/scratch/users/yvesrobert/HTR-10_latest/Cases/HTR-10_P1_T1/wrk_Serpent/input.inp.wrk_650'
 elif read_firt_compositions:
-    restart_binary = './Tools/Create_initial_compositions/restart/first_compos.wrk'
-    restart_data = './Tools/Create_initial_compositions/data_first_compos.csv'
-
+    restart_binary = '/global/scratch/users/yvesrobert/HxF/Tools/Create_initial_compositions/restart/first_compos.wrk'
+    restart_data = '/global/scratch/users/yvesrobert/HxF/Tools/Create_initial_compositions/data_first_compos.csv'

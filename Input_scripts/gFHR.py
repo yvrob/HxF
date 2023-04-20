@@ -42,8 +42,8 @@ detector_names = ['flux_pebbles_thermal', 'flux_pebbles_fast', 'power_pebbles']
 #%% Depletion steps
 power_normalization_field = 'power'
 power_normalization_value = 280e6 # W
-Nsteps = 60+120+500
-neutrons_per_cycle = [50000]*20+[100000]*20+[500000]*(Nsteps-20-20)
+Nsteps = 1000
+neutrons_per_cycle = [20000]*68*2+[500000]*(Nsteps-68*3)
 decay_step = 0 # days
 
 #%% Burnup cycle
@@ -56,7 +56,7 @@ recirc_threshold = 1 # cm, absolute value
 
 # Discrete motion
 if discrete_motion:
-    Nrows_to_move = [20]*20+[10]*20+[5]*(Nsteps-20-20)
+    Nrows_to_move = [6]*68*2+[3]*(Nsteps-68*3)
     time_per_pass = 522/8 # days
 
 # DEM
@@ -76,9 +76,9 @@ else:
         looper_method = 'xyz'
 
 #%% Outputing
-output_folder_name = 'gFHR_dm' # Name of the output folder
+output_folder_name = 'gFHR' # Name of the output folder
 verbosity_mode = 1
-
+inventory_names = ['922350', '922360', '922380', '942390', '942380', '942400', '942410', '942420', '952410', '952421', '551370', '541350', '531310', '380900']
 
 #%% Domain decomposition
 if domain_decomposition:
@@ -97,3 +97,11 @@ if restart_calculation:
 elif read_firt_compositions:
     restart_binary = '/global/scratch/users/yvesrobert/HxF/Tools/Create_initial_compositions/restart/first_compos.wrk'
     restart_data = '/global/scratch/users/yvesrobert/HxF/Tools/Create_initial_compositions/data_first_compos.csv'
+
+if saving:
+    write_global = True
+    write_incore = True
+    write_reinserted = True
+    write_discarded = True
+    write_discharged = True
+

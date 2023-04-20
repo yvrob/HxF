@@ -1812,6 +1812,27 @@ class Pebble_bed:
             if cnt_extra > 0:
                 log_print(f'{cnt_extra} extra pebbles in domain {filling_domain}', verbose, level+1, log_delim)
 
+        elif decomposition_type in ['7', 'k-means', 'optimal', 'opt', 'clustering', 'cluster', 'k']: # K-means clustering
+            from scipy.spatial.distance import cdist
+            from scipy.cluster.vq import kmeans2
+            log_print(f'Decomposing pebbles by spherical zones in {n_domains} domains', verbose, level, log_delim)
+
+
+            # Get the initial centroids using k-means++
+            # The kmeans2 function is used to find the initial centroids using the k-means++ initialization method.
+            initial_centroids, _ = kmeans2(points, n_domains, minit='++')
+            
+            # Assign each point to the closest centroid
+            # The cdist function is used to calculate the distances between each point and each centroid.
+            # The np.argmin function is used to find the index of the closest centroid for each point, giving us an array of group assignments.
+            distances = cdist(points, initial_centroids)
+            groups = np.argmin(distances, axis=1)
+
+            # Calculate the counts for each group
+            # The np.bincount function is used to count the number of points in each group.
+            # The minlength parameter is used to ensure that the bincount function returns an array of length n_groups, even if some of the groups are empty.
+            counts = np.bincount(groups)
+
         self.data['domain_id'] = domain_id
         
 
