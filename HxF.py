@@ -170,7 +170,10 @@ if not discrete_motion:
 # Discrete motion: import from pbed file, assign row/column ID and make motion matrix
 else:
     print(f'Using discrete motion')
-    data = pd.read_csv(pbed_file, header=None, names=['x', 'y', 'z', 'r', 'uni'], delim_whitespace=True)
+    if restart_calculation or read_firt_compositions:
+        data = pd.read_csv(restart_data, index_col=0)
+    else:
+        data = pd.read_csv(pbed_file, header=None, names=['x', 'y', 'z', 'r', 'uni'], delim_whitespace=True)
 
     columns_group = data.groupby(["y", "x"], sort=False).ngroup().add(1) - 1
     data["column_id"] = columns_group
