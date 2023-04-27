@@ -1,0 +1,201 @@
+/******************
+ * Run parameters *
+ ******************/
+set pop 2000 100 20
+set ures 1
+
+% Performance/memory
+set opti 1
+set gcu -1
+set memfrac 0.99
+set repro 0
+set shbuf 0 0
+set outp 10000000
+
+
+% Burnup calculation
+set pcc 0
+set power 1e7
+dep bustep 10.8
+div fuel1 peb u_pb 1 u_fuel1_pebble 
+div fuel2 peb u_pb 1 u_fuel2_pebble           % to use if using version 2.2.0
+%div fuel sep 4                             % to use if using version <2.2.0
+%div fuel2 sep 4                            % to use if using version <2.2.0
+
+set bumode 2 16
+set inventory 922350 922380 942390 942410 541350 551370 430990 531290
+
+
+
+% Detectors
+det flux_pebbles_thermal dl u_pb de Ethermal dv 113.09733552923254
+det flux_pebbles_fast    dl u_pb de Efast dv 113.09733552923254
+det power_pebbles dl u_pb dr -8 void
+ene Ethermal 1 1E-11 1.86E-6
+ene Efast 1 0.1 20
+
+% --- Detector for tallying the flux energy spectrum
+%     The energy grid used for tallying will be defined later
+
+det EnergyDetector de MyEnergyGrid
+
+ene MyEnergyGrid 3 500 1e-11 2e1
+
+
+
+
+% Nuclear data import
+set nfylib "/global/home/groups/co_nuclear/serpent/xsdata/endfb7/sss_endfb7.nfy"
+set declib "/global/home/groups/co_nuclear/serpent/xsdata/endfb7/sss_endfb7.dec"
+
+
+
+
+/************************
+ * Geometry definitions *
+ ************************/
+
+surf sCUBE cube 0.0 0.0 0.0 70
+
+surf cuboid cube 0.0 0.0 0.0 90
+
+cell cOUT 0 outside cuboid
+
+cell refl 0 peb_graph sCUBE -cuboid
+
+set bc 3
+
+% Surface between fueled and not fueled (shell) zones of the pebble
+surf fueled_zone sph 0 0 0 2.5 % graphite matrix maximum radius (outside limit for pebble of 3cm defined in "HTR-10_0.inp")
+surf pebble_surf sph 0 0 0 3 % graphite pebble maximum radius
+
+% Fueled zone, filled with the "trisos" lattice, and shell cells
+cell c_pebble_matrix u_fuel1_pebble fill trisos -fueled_zone
+cell c_pebble_shell u_fuel1_pebble  peb_shell fueled_zone
+
+cell c_pebble_matrix2 u_fuel2_pebble fill trisos2 -fueled_zone
+cell c_pebble_shell2 u_fuel2_pebble  peb_shell2 fueled_zone
+
+% Graphite pebble, filled with graphite
+cell c_graph_peb u_graph_pebble peb_graph -pebble_surf
+
+
+
+
+surf infinite inf
+
+% Create infinite background universe called "u_graph" filled with graphite matrix
+cell inf u_graph  peb_shell -infinite
+
+cell inf2 u_graph2 peb_shell2 -infinite
+
+% Add the graphite at a new "trisos" universe created with the file "  "
+pbed trisos u_graph "trisos1.inp"
+
+pbed trisos2 u_graph2 "trisos2.inp"
+
+% Create infinite background universe called "u_coolant" filled with helium
+cell helium u_coolant He -infinite
+
+% Add the helium at a new "u_pb" universe created with the file "   "
+pbed u_pb u_coolant "pebbles.inp"
+
+
+% The main universe (0) is filled with the pebble bed universe "u_pb"
+cell cINT 0 fill u_pb -sCUBE
+
+
+
+
+/************************
+ * Materials definitions *
+ ************************/
+
+
+%%%% Triso particle, which matches the one in "trisos.inp"
+particle p_triso
+fuel1 0.025
+buffer 0.034
+PyC 0.038
+SiC     0.0415
+PyC 0.0455
+peb_graph
+
+particle p_triso2
+fuel2 0.025
+buffer 0.034
+PyC 0.038
+SiC     0.0415
+PyC 0.0455
+peb_graph2
+
+
+% Material He cells
+
+mat	He	-0.004855559428244974	rgb	230 230 230	% adens = 4.062301E+21
+2004.03c	-0.004855559428244974	% adens = 4.062301E+21
+
+% Material fuel
+mat	fuel1	-10.1	burn	1		rgb	204 51 51
+92235.03c	-0.19
+92238.03c	-0.81
+
+
+mat fuel2  -8.2	burn	1		rgb	255 255 0
+92235.03c	-0.0072
+92238.03c	-0.9928
+%43099.03c -0.5
+%53129.03c -0.5
+
+
+
+% Material peb_graph
+mat	peb_graph	-1.730000E+00	moder	graph	6000		rgb	51 51 51	% adens = 8.674259E+22
+6000.03c	-1.729998E+00	% adens = 8.674247E+22
+5010.03c	-3.684243E-07	% adens = 2.215836E+16
+5011.03c	-1.656418E-06	% adens = 9.060685E+16
+
+
+mat	peb_graph2	-1.730000E+00	moder	graph	6000		rgb	255 255 0	% adens = 8.674259E+22
+6000.03c	-1.729998E+00	% adens = 8.674247E+22
+5010.03c	-3.684243E-07	% adens = 2.215836E+16
+5011.03c	-1.656418E-06	% adens = 9.060685E+16
+
+
+% Material peb_shell
+mat	peb_shell	-1.730000E+00	moder	graph	6000		rgb	135 67 120	% adens = 8.674259E+22
+6000.03c	-1.729998E+00	% adens = 8.674247E+22
+5010.03c	-3.684243E-07	% adens = 2.215836E+16
+5011.03c	-1.656418E-06	% adens = 9.060685E+16
+
+
+
+mat	peb_shell2	-1.730000E+00	moder	graph	6000		rgb	255 255 0	% adens = 8.674259E+22
+6000.03c	-1.729998E+00	% adens = 8.674247E+22
+5010.03c	-3.684243E-07	% adens = 2.215836E+16
+5011.03c	-1.656418E-06	% adens = 9.060685E+16
+
+
+
+% Material buffer
+mat	buffer	-1.100000E+00	moder	graph	6000	rgb	51 51 51	% adens = 5.515424E+22
+6000.03c	-1.100000E+00	% adens = 5.515424E+22
+
+% Material PyC
+mat	PyC	-1.900000E+00	moder	graph	6000	rgb	51 51 51	% adens = 9.526641E+22
+6000.03c	-1.900000E+00	% adens = 9.526641E+22
+
+% Material SiC
+mat	SiC	-3.180000E+00	moder	graph	6000	rgb	51 51 51	% adens = 9.578191E+22
+6000.03c	-9.551405E-01	% adens = 4.789095E+22
+14028.03c	-2.224859E+00	% adens = 4.789095E+22
+
+therm	graph	300	gre7.00t	gre7.04t
+
+
+set acelib "/global/home/groups/co_nuclear/serpent/xsdata/endfb7/sss_endfb7u.xsdata"
+
+
+
+% Plotting
+plot 1 2000 2000
