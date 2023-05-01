@@ -1,3 +1,12 @@
+# Known issues:
+# - Restart, first step is completely wrong, but then it works
+# - Domain decomposition, if uncommented, takes too long to update domains
+# - Thresholds different than burnup/passes do not work for now and inventory problem now with 
+# - Detectors do not work with multiple fuels
+# - "Dirty" implementation of multiple fuels
+# - Option to turn off declib/nfylib does not work
+# - To add: one threshold per pebble type
+
 print("""
 ============================================================
 ||                                                        ||
@@ -103,6 +112,8 @@ inventory_names  = process_inventory(inventory_names) # translate keywords to is
 if inventory_names:
     with open(main_input_file, 'a') as f:
         f.write(f'\nset inventory {" ".join(inventory_names)}\n')
+else:
+    inventory_names = []
 
 #%% Domain decomposition
 if domain_decomposition:
@@ -230,6 +241,11 @@ for fuel_mat_name in fuels_material_names:
     Nfuels[fuel_mat_name] = (data['fuel_name']==fuel_mat_name).sum()
 
 # Prepare case
+if not use_decnfy_lib: # remove link to decay/nfy library if not needed
+    print('Not using decay/nfylibraries')
+    os.environ.pop('SERPENT_DECLIB', None)    
+    os.environ.pop('SERPENT_NFYLIB', None)    
+
 serpent, serpent_input_files = start_Serpent(os.environ["SERPENT_EXE"], ncores, main_input_file, nnodes, verbosity_mode)
 nplots = count_plots(serpent_input_files) # count number of plot commands in input files
 
@@ -310,6 +326,10 @@ for fuel_mat_name in fuels_material_names: # Do it for each fuel material
 tra['switch_mode']   = get_transferrable('burn_step_type', serpent, input_parameter=True) # Can be called to switch between decay mode and depletion mode (useful for decay)
 tra['time_in']       = get_transferrable('burn_time', serpent, input_parameter=True) # Can be called to control the simulation time (useful for decay)
 
+# Set fuel volumes
+for i in range(Nfuel_types):
+    Serpent_set_values(f"material_div_{fuels_material_names[i]}_volume", np.array([4/3*np.pi*fuels_dict[fuels_universes_names[i]]['r_fuel_kernel']**3*fuels_dict[fuels_universes_names[i]]['Ntrisos']] * data[f'isfuel_{i}'].sum()), serpent) # allows overwriting volume definitions in Serpent
+
 # Try to add step-wise variables, if given
 try:
     power_normalization_field = f'norm_{power_normalization_field}'
@@ -320,7 +340,6 @@ try:
     tra['neutrons_per_cycle'] = get_transferrable("neutrons_per_cycle", serpent, input_parameter=True) # Give number of neutrons to Serpent
 except:
     pass
-
 
 #### Serpent => Python #####
 tra['keff']          = get_transferrable('ANA_KEFF', serpent) # Monitor multiplication factor
@@ -398,6 +417,7 @@ else:
 #%% Communicate some data from Serpent (checking purpose, threshold, and filling data for restart)
 
 for i in range(Nfuel_types):
+    print(len(Serpent_get_values(tra['bu_out'][fuels_material_names[i]])), pbed.data[f'isfuel_{i}'].sum())
     # Burnup
     pbed.data.loc[pbed.data[f'isfuel_{i}'], 'burnup'] = Serpent_get_values(tra['bu_out'][fuels_material_names[i]]).astype(float)
 
@@ -412,11 +432,10 @@ pbed.cycle_hist = pd.DataFrame(columns=['time', 'passes', 'recirculated', 'disca
 pbed.discarded_data =  pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isfuel','recirculated','discarded', 'pass_agg_r_dist']+[f'isfuel_{i}' for i in range(Nfuel_types)]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))+pass_dependent_names+['discard_step']) # Discarded pebbles data
 if 'uni' in pbed.discarded_data.columns:
     pbed.discarded_data = pbed.discarded_data.drop(columns='uni')
-pbed.discharged_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isfuel','recirculated', 'pass_agg_r_dist']+[f'isfuel_{i}' for i in range(Nfuel_types)]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))) # Discharged pebbles data
+# pbed.discharged_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isfuel','recirculated', 'pass_agg_r_dist']+[f'isfuel_{i}' for i in range(Nfuel_types)]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))) # Discharged pebbles data
 pbed.discharged_fuel_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isfuel','recirculated', 'pass_agg_r_dist']+[f'isfuel_{i}' for i in range(Nfuel_types)]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))) # Discharged pebbles data, only fuel pebbles
-pbed.reinserted_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isfuel','recirculated', 'pass_agg_r_dist']+[f'isfuel_{i}' for i in range(Nfuel_types)]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))) # Re-inserted pebbles data
+# pbed.reinserted_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isfuel','recirculated', 'pass_agg_r_dist']+[f'isfuel_{i}' for i in range(Nfuel_types)]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))) # Re-inserted pebbles data
 pbed.reinserted_fuel_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isfuel','recirculated', 'pass_agg_r_dist']+[f'isfuel_{i}' for i in range(Nfuel_types)]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))) # Re-inserted pebbles data, only fuel pebbles
-pbed.tracked_reinserted_nuclide = pd.DataFrame() # added for ML project
 
 #%% Main loop
 for step in range(first_step, Nsteps):
@@ -523,6 +542,13 @@ for step in range(first_step, Nsteps):
         # Detect recirculated pebbles based on z increment between new and old data
         if discrete_motion:
             recirc_threshold=0
+        else:
+            # Warning: if the DEM step is huge, many pebbles could recirculate and this would not be valid anymore, then comment that and put the motion_direction in the input
+            if (pbed.data['z'] - pbed.old_data['z']).mean() > 0:
+                motion_direction = 1
+            else:
+                motion_direction = -1
+
         print(f'\tRecirculation criterion: deltaZ {"< -" if motion_direction==+1 else ">"} {recirc_threshold} cm')
         pbed.data['recirculated'] = (-motion_direction*(pbed.data['z'] - pbed.old_data['z']) > recirc_threshold) # select recirculated pebbles (deltaZ > threshold)
         Nrecirculated = pbed.data["recirculated"].sum()
@@ -562,8 +588,8 @@ for step in range(first_step, Nsteps):
 
         # Store discharged information
         print(f'\tStoring {Nrecirculated} discharged pebbles information')
-        pbed.discharged_data = pbed.data.loc[pbed.data['recirculated'], pbed.discharged_data.columns].copy()
-        pbed.discharged_fuel_data = pbed.data.loc[((pbed.data['isfuel']) & pbed.data['recirculated']), pbed.discharged_data.columns].copy()
+        # pbed.discharged_data = pbed.data.loc[pbed.data['recirculated'], pbed.discharged_data.columns].copy()
+        pbed.discharged_fuel_data = pbed.data.loc[((pbed.data['isfuel']) & pbed.data['recirculated']), pbed.discharged_fuel_data.columns].copy()
 
         # Store discarded information
         print(f'\tStoring {Ndiscarded} discarded pebbles information')
@@ -589,8 +615,8 @@ for step in range(first_step, Nsteps):
 
         # Store reinserted information (fresh + non-discarded pebbles)
         print(f'\tStoring {Nrecirculated} reinserted pebbles information')
-        pbed.reinserted_data = pbed.data.loc[pbed.data['recirculated'], pbed.reinserted_data.columns].copy()
-        pbed.reinserted_fuel_data = pbed.data.loc[((pbed.data['isfuel']) & pbed.data['recirculated']), pbed.reinserted_data.columns].copy()
+        # pbed.reinserted_data = pbed.data.loc[pbed.data['recirculated'], pbed.reinserted_data.columns].copy()
+        pbed.reinserted_fuel_data = pbed.data.loc[((pbed.data['isfuel']) & pbed.data['recirculated']), pbed.reinserted_fuel_data.columns].copy()
         
         for i in range(Nfuel_types):
             for name in inventory_names:
@@ -598,7 +624,7 @@ for step in range(first_step, Nsteps):
                 id_nuc = nuclides_list[material].index(int(name))
                 discarded = (pbed.data['discarded']) & (pbed.data[f'isfuel_{i}'])
                 if discarded.sum()>0:
-                    pbed.reinserted_data.loc[discarded, i] = fresh_fuel[material][id_nuc]
+                    # pbed.reinserted_data.loc[discarded, i] = fresh_fuel[material][id_nuc]
                     pbed.reinserted_fuel_data.loc[discarded, i] = fresh_fuel[material][id_nuc]
 
         # Reset pass-dependent variables for recirculated data
@@ -664,10 +690,10 @@ for step in range(first_step, Nsteps):
                 added_unc = added * pbed.data[f'{name}_rel_unc']
                 pbed.data[f'integrated_{name}'] += added
                 pbed.data[f'integrated_{name}_unc'] += added_unc
-                pbed.data[f'integrated_{name}_rel_unc'] = pbed.data[f'integrated_{name}_unc']/pbed.data[f'integrated_{name}']
+                pbed.data[f'integrated_{name}_rel_unc'] = pbed.data[f'integrated_{name}_unc']/pbed.data[f'integrated_{name}'] # to modify
                 pbed.data[f'pass_integrated_{name}'] += added
                 pbed.data[f'pass_integrated_{name}_unc'] += added_unc
-                pbed.data[f'pass_integrated_{name}_rel_unc'] = pbed.data[f'pass_integrated_{name}_unc']/pbed.data[f'pass_integrated_{name}']
+                pbed.data[f'pass_integrated_{name}_rel_unc'] = pbed.data[f'pass_integrated_{name}_unc']/pbed.data[f'pass_integrated_{name}']  # to modify
                 if 'power' in name: # Only fuel has power, rest is "nan"
                     for subname in [f'integrated_{name}', f'integrated_{name}_unc', f'integrated_{name}_rel_unc', f'pass_integrated_{name}', f'pass_integrated_{name}_unc', f'pass_integrated_{name}_rel_unc']:
                         pbed.data.loc[~pbed.data['isfuel'], subname] = np.nan
@@ -757,19 +783,10 @@ for step in range(first_step, Nsteps):
         if write_incore:
             pbed.data.to_csv(f'Data/core_{step}.csv') # whole core data
         if write_discharged:
-            pbed.discharged_data.to_csv(f'Data/discharged_{step}.csv') # discarded pebbles data
+            # pbed.discharged_data.to_csv(f'Data/discharged_{step}.csv') # discarded pebbles data
             pbed.discharged_fuel_data.to_csv(f'Data/discharged_fuel_{step}.csv') # discarded pebbles data
         if write_discarded:
             pbed.discarded_data.to_csv(f'Data/discarded_{step}.csv') # discarded pebbles data
         if write_reinserted:
-            pbed.reinserted_data.to_csv(f'Data/reinserted_{step}.csv') # re-inserted pebbles data
+            # pbed.reinserted_data.to_csv(f'Data/reinserted_{step}.csv') # re-inserted pebbles data
             pbed.reinserted_fuel_data.to_csv(f'Data/reinserted_fuel_{step}.csv') # re-inserted pebbles data, only fuel pebbles
-
-        # Added for ML project: Cs137 vs keff
-        nuclide = '551370'
-        if transport and nuclide in pbed.reinserted_fuel_data.columns:
-            pbed.tracked_reinserted_nuclide.loc[step, ['keff', 'keff_relative_uncertainty', 'keff_absolute_uncertainty']] = [keff, keff_rel_unc, keff_unc]
-            tracked = pbed.reinserted_fuel_data[nuclide]
-            tracked.index = [f'{ZAI_to_name(nuclide)}_{i} [at/b.cm]' for i in range(len(tracked))]
-            pbed.tracked_reinserted_nuclide.loc[step, tracked.index] = tracked.T
-            pbed.tracked_reinserted_nuclide.to_csv(f'Data/tracked_{ZAI_to_name(nuclide)}_{step}.csv')

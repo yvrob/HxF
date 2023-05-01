@@ -11,6 +11,7 @@ decay_step = 0 # days
 transport = True
 resolve_first = True
 correct = False
+use_decnfy_lib = True
 
 #%% Motion
 DEM_step_increment = 1

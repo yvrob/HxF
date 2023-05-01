@@ -13,7 +13,7 @@ import time
 
 def start_Serpent(serpent_executable, ncores, input_files, nnodes=1, verbosity=1):
 	cb.LOG.set_verbosity(verbosity)
-	cb.LOG.set_compiled_table(True)
+	# cb.LOG.set_compiled_table(True)
 	if isinstance(input_files, str):
 		input_files = rec_Serpent_file_search(input_files)
 
