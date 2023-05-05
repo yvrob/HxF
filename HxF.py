@@ -1,10 +1,8 @@
 # Known issues:
-# - Restart, first step is completely wrong, but then it works
+# - Restart, first step is completely wrong, but then it works fine (no impact seen)
 # - Domain decomposition, if uncommented, takes too long to update domains
-# - Thresholds different than burnup/passes do not work for now and inventory problem now with 
-# - Detectors do not work with multiple fuels
+# - Thresholds different than burnup/passes do not work
 # - "Dirty" implementation of multiple fuels
-# - Option to turn off declib/nfylib does not work
 # - To add: one threshold per pebble type
 
 print("""
@@ -209,7 +207,6 @@ if not restart_calculation:
     graphite_frac = 1 - sum(fuels_fracs)
     Nfuel_types =len(fuels_material_names)
     print(f'Assigning random universes {fuels_universes_names} corresponding to {fuels_material_names} with fractions of {fuels_fracs*100}%\n')
-    print(data.shape[0], list(fuels_universes_names)+[graph_pebble_universe_name], list(fuels_fracs) + [graphite_frac])
     data['uni'] = assign_random_array(np.arange(data.shape[0]), list(fuels_universes_names)+[graph_pebble_universe_name], list(fuels_fracs) + [graphite_frac]) # Split into fuel and non-fuel
     for i, uni_name in enumerate(fuels_universes_names):
         data.loc[data['uni']==uni_name, 'fuel_name'] = fuels_material_names[i]
@@ -321,14 +318,19 @@ for fuel_mat_name in fuels_material_names: # Do it for each fuel material
     if domain_decomposition:
         tra['domain_in'][fuel_mat_name]   = get_transferrable(f"material_div_{fuel_mat_name}_domain", serpent, input_parameter=True) # Can be called to control which domain pebbles are transfered to
     if threshold_type not in ['passes', 'burnup']:
-        tra[f'{threshold_type}_in'][fuel_mat_name] = Serpent_get_material_wise(fuel_mat_name, threshold_type, serpent, prefix='composition', input_parameter=True)
+        tra[f'{threshold_type}_in'][fuel_mat_name] = Serpent_get_material_wise(fuel_mat_name, threshold_type, serpent, prefix='material', input_parameter=True)
 
 tra['switch_mode']   = get_transferrable('burn_step_type', serpent, input_parameter=True) # Can be called to switch between decay mode and depletion mode (useful for decay)
 tra['time_in']       = get_transferrable('burn_time', serpent, input_parameter=True) # Can be called to control the simulation time (useful for decay)
 
 # Set fuel volumes
 for i in range(Nfuel_types):
-    Serpent_set_values(f"material_div_{fuels_material_names[i]}_volume", np.array([4/3*np.pi*fuels_dict[fuels_universes_names[i]]['r_fuel_kernel']**3*fuels_dict[fuels_universes_names[i]]['Ntrisos']] * data[f'isfuel_{i}'].sum()), serpent) # allows overwriting volume definitions in Serpent
+    V_per_pebble = 4/3*np.pi*fuels_dict[fuels_universes_names[i]]['r_fuel_kernel']**3*fuels_dict[fuels_universes_names[i]]['Ntrisos']
+    N = data[f'isfuel_{i}'].sum() 
+    print(f'Calculated volume for {fuels_material_names[i]}: {V_per_pebble:.2E} cm^3 (x{N} pebbles)')
+    Serpent_set_values(f"material_div_{fuels_material_names[i]}_volume", np.array([V_per_pebble]*N), serpent) # allows overwriting volume definitions in Serpent
+
+
 
 # Try to add step-wise variables, if given
 try:
@@ -345,9 +347,11 @@ except:
 tra['keff']          = get_transferrable('ANA_KEFF', serpent) # Monitor multiplication factor
 tra['keff_rel_unc']          = get_transferrable('ANA_KEFF_rel_unc', serpent) # Monitor multiplication factor
 tra['bu_out'] = dict()
+tra['fima_out'] = dict()
 # tra['decay_heat'] = dict()
 for fuel_mat_name in fuels_material_names: # Do it for each fuel material
     tra['bu_out'][fuel_mat_name]      = get_transferrable(f"material_div_{fuel_mat_name}_burnup", serpent) # Monitor burnup
+    tra['fima_out'][fuel_mat_name]      = get_transferrable(f"material_div_{fuel_mat_name}_fima", serpent) # Monitor burnup
     # if not domain_decomposition:
     #     tra['decay_heat'][fuel_mat_name]      = get_transferrable(f"material_div_{fuel_mat_name}_decayheat", serpent) # Monitor burnup
 
@@ -385,6 +389,7 @@ pbed.data['pass_residence_time'] = 0.0 # Monitor residence time for the current 
 # if not domain_decomposition:
 #     pbed.data.loc[pbed.data['isfuel'], 'decay_heat'] = 0.0 # Monitor decay heat
 pbed.data.loc[pbed.data['isfuel'], 'burnup'] = 0.0 # Monitor burnup
+pbed.data.loc[pbed.data['isfuel'], 'fima'] = 0.0 # Monitor burnup
 pbed.data.loc[pbed.data['isfuel'], 'pass_burnup'] = 0.0 # Monitor burnup for the current pass
 pbed.data['insertion_step'] = 0 # Monitor when pebbles were inserted
 pbed.data['avg_r_dist'] = np.array(pbed.data['r_dist']) # Monitor where pebble are radially, on average
@@ -415,11 +420,10 @@ else:
             Serpent_set_multiple_values(tra[f'{threshold_type}_in'][fuels_material_names[i]], np.random.uniform(0, step_wise_variables["threshold"][0], pbed.data[f'isfuel_{i}'].sum())) # Uniform distribution between 0 and threshold value, in Serpent
 
 #%% Communicate some data from Serpent (checking purpose, threshold, and filling data for restart)
-
 for i in range(Nfuel_types):
-    print(len(Serpent_get_values(tra['bu_out'][fuels_material_names[i]])), pbed.data[f'isfuel_{i}'].sum())
     # Burnup
     pbed.data.loc[pbed.data[f'isfuel_{i}'], 'burnup'] = Serpent_get_values(tra['bu_out'][fuels_material_names[i]]).astype(float)
+    pbed.data.loc[pbed.data[f'isfuel_{i}'], 'fima'] = Serpent_get_values(tra['fima_out'][fuels_material_names[i]]).astype(float)
 
     # Initialize columns for each isotope in inventory
     pbed.data[inventory_names] = np.nan
@@ -433,7 +437,9 @@ pbed.discarded_data =  pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y'
 if 'uni' in pbed.discarded_data.columns:
     pbed.discarded_data = pbed.discarded_data.drop(columns='uni')
 # pbed.discharged_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isfuel','recirculated', 'pass_agg_r_dist']+[f'isfuel_{i}' for i in range(Nfuel_types)]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))) # Discharged pebbles data
+
 pbed.discharged_fuel_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isfuel','recirculated', 'pass_agg_r_dist']+[f'isfuel_{i}' for i in range(Nfuel_types)]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))) # Discharged pebbles data, only fuel pebbles
+
 # pbed.reinserted_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isfuel','recirculated', 'pass_agg_r_dist']+[f'isfuel_{i}' for i in range(Nfuel_types)]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))) # Re-inserted pebbles data
 pbed.reinserted_fuel_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isfuel','recirculated', 'pass_agg_r_dist']+[f'isfuel_{i}' for i in range(Nfuel_types)]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))) # Re-inserted pebbles data, only fuel pebbles
 
@@ -544,7 +550,7 @@ for step in range(first_step, Nsteps):
             recirc_threshold=0
         else:
             # Warning: if the DEM step is huge, many pebbles could recirculate and this would not be valid anymore, then comment that and put the motion_direction in the input
-            if (pbed.data['z'] - pbed.old_data['z']).mean() > 0:
+            if (pbed.data['z'] > pbed.old_data['z']).sum()/pbed.data.shape[0] > 0.5: # if the majority went up
                 motion_direction = 1
             else:
                 motion_direction = -1
@@ -616,7 +622,7 @@ for step in range(first_step, Nsteps):
         # Store reinserted information (fresh + non-discarded pebbles)
         print(f'\tStoring {Nrecirculated} reinserted pebbles information')
         # pbed.reinserted_data = pbed.data.loc[pbed.data['recirculated'], pbed.reinserted_data.columns].copy()
-        pbed.reinserted_fuel_data = pbed.data.loc[((pbed.data['isfuel']) & pbed.data['recirculated']), pbed.reinserted_fuel_data.columns].copy()
+        pbed.reinserted_fuel_data = pbed.data.loc[(pbed.data['isfuel']) & (pbed.data['recirculated']), pbed.reinserted_fuel_data.columns].copy()
         
         for i in range(Nfuel_types):
             for name in inventory_names:
@@ -625,7 +631,7 @@ for step in range(first_step, Nsteps):
                 discarded = (pbed.data['discarded']) & (pbed.data[f'isfuel_{i}'])
                 if discarded.sum()>0:
                     # pbed.reinserted_data.loc[discarded, i] = fresh_fuel[material][id_nuc]
-                    pbed.reinserted_fuel_data.loc[discarded, i] = fresh_fuel[material][id_nuc]
+                    pbed.reinserted_fuel_data.loc[discarded, name] = fresh_fuel[material][id_nuc]
 
         # Reset pass-dependent variables for recirculated data
         for name in pass_dependent_names:
@@ -666,6 +672,7 @@ for step in range(first_step, Nsteps):
         # Extract burnups and calculate pass burnup
         for i in range(Nfuel_types):
             pbed.data.loc[pbed.data[f'isfuel_{i}'], 'burnup'] = Serpent_get_values(tra['bu_out'][fuels_material_names[i]]).astype(float)
+            pbed.data.loc[pbed.data[f'isfuel_{i}'], 'fima'] = Serpent_get_values(tra['fima_out'][fuels_material_names[i]]).astype(float)
         if step > 0:
             # Pass burnup incremented for fuel pebbles
             pbed.data.loc[(pbed.data['isfuel'] & (~pbed.data['recirculated'])), 'pass_burnup'] += pbed.data.loc[pbed.data['isfuel'], 'burnup'] - pbed.old_data.loc[pbed.data['isfuel'], 'burnup']

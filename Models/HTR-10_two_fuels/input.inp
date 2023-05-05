@@ -1,5 +1,5 @@
 %%%%%%%%%%% Simulation parameters %%%%%%%%%%%
-set Cerberus_verbosity 0
+%set Cerberus_verbosity 0
 
 % Transport calculation
 set pop 1000 100 20

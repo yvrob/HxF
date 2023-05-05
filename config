@@ -11,7 +11,7 @@ CONFIGURATION_FILE="./Utils/sss_environment" # Script loading conda environment 
 # Cluster configuration
 GROUP_ACCOUNT="co_nuclear" #"co_nuclear" # Name of the account to use (e.g. co_nuclear, fc_neutronics)
 PARTITION="savio" # Name of partition (e.g. savio, savio2, savio3, savio2_bigmem, ...)
-NNODES=2 # Number of nodes to use
+NNODES=1 # Number of nodes to use
 QOS="nuclear_savio_normal" # QoS associated to group account (savio_normal for fc_neutronics, nuclear_savio_normal for co_nuclear)
 NHOURS=1 # Time limit in hours for the job
 SUFFIX_JOB="" # Suffix (if needed) for the job name, otherwise takes the name of the Python input script
