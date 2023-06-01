@@ -712,6 +712,11 @@ def process_inventory(inventory_names):
 	else:
 		return inventory_names
 
+def getdict(dictionary, key=None):
+	if key:
+		return np.array(list(element.get(key) for element in dictionary.values()))
+	else:
+		return np.array(list(dictionary.keys()))
 #data, PF, N, output = use_disperser('cylinder', (120.00, 60.00, 369.47), 0.6, 2, 1, 'fpb_pos', 64, grow_and_shake=True, shake_factor=0.05, growth_factor=0.05, print_output=True)
 
 # %%
