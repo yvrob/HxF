@@ -31,7 +31,7 @@ main_input_file = 'input.inp' # Name of the main input file
 # Pebbles
 pbed_file = 'pebbles.inp'
 r_pebbles = 3 # cm
-pebbles_dict = {'u_fuel1_pebble':{'mat_name':'fuel1', 'pebbles_frac':0.5, 'r_fuel_kernel':0.025, 'Ntrisos':8335, 'threshold_type':'burnup', 'threshold_dir':+1, 'threshold':70},
+pebbles_dict = {'u_fuel1_pebble':{'mat_name':'fuel1', 'pebbles_frac':0.5, 'r_fuel_kernel':0.025, 'Ntrisos':8335, 'threshold_type':'551370', 'threshold_dir':+1, 'threshold':4e-5},
                 'u_fuel2_pebble':{'mat_name':'fuel2', 'pebbles_frac':0.2, 'r_fuel_kernel':0.025, 'Ntrisos':8335},
                 'u_graph_pebble':{'pebbles_frac':0.2}}
 
@@ -78,7 +78,7 @@ else:
 
 #%% Outputing
 output_folder_name = 'Test' # Name of the output folder
-verbosity_mode = 3
+verbosity_mode = 0
 
 #%% Domain decomposition
 if domain_decomposition:

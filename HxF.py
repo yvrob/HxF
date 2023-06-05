@@ -199,7 +199,8 @@ print()
 
 # Assign random universe, based on fuel fraction, if not restarting
 if not restart_calculation:
-    fuel_pebbles_dict = dict()
+    active_pebbles_dict = dict()
+    threshold_pebbles_dict = dict()
     pebbles_fracs = getdict(pebbles_dict, 'pebbles_frac')
     pebbles_fracs /= pebbles_fracs.sum() # normalize fractions
     print(f'Assigning random universes {pebbles_dict.keys()} corresponding to {getdict(pebbles_dict, "mat_name")} with fractions of {pebbles_fracs*100}%\n')
@@ -209,12 +210,17 @@ if not restart_calculation:
         data[f'pebble_type_{uni_id}'] = (data['uni'] == uni_name)
         if 'mat_name' in uni.keys():
             data.loc[data['uni'] == uni_name, 'mat_name'] = uni['mat_name']
+            data.loc[data['uni'] == uni_name, 'isactive'] = True
+            active_pebbles_dict[uni_name] = pebbles_dict[uni_name]
         #     if any(str(element) in ['922330', '942380', '902320', '922380', '922350', '942390', '942410'] for element in nuclides_list[uni['mat_name']]):
         #         data.loc[data['uni'] == uni_name, 'isactive'] = True
-        #         fuel_pebbles_dict[uni_name] = pebbles_dict[uni_name]
+        #         active_pebbles_dict[uni_name] = pebbles_dict[uni_name]
+
         if ('threshold_type' in uni.keys() and uni['threshold_type']) or 'threshold' in uni.keys():
-            data.loc[data['uni'] == uni_name, 'isactive'] = True
-            fuel_pebbles_dict[uni_name] = pebbles_dict[uni_name]
+            # data.loc[data['uni'] == uni_name, 'isactive'] = True
+            threshold_pebbles_dict[uni_name] = pebbles_dict[uni_name]
+
+
 
 # Domain decomposition
 
@@ -262,7 +268,7 @@ for var in ["Nrows_to_move", "neutrons_per_cycle", "power_normalization_value", 
         pass
 
 # Process threshold for each pebble type
-for uni_id, (uni_name, uni) in enumerate(fuel_pebbles_dict.items()):
+for uni_id, (uni_name, uni) in enumerate(threshold_pebbles_dict.items()):
     var = f'threshold_{uni["mat_name"]}'
     try: # Add only the ones in the input
         step_wise_variables[var] = uni['threshold']
@@ -298,13 +304,13 @@ serpent.set_current_time(curr_time) # Communicate to Serpent
 
 # Find one material zone per universe name, and get composition
 serpent_materials = natural_sort(Serpent_get_values('materials', serpent))
-nuclides_list = {fuel_mat_name: [] for fuel_mat_name in getdict(fuel_pebbles_dict, 'mat_name')}
-fresh_fuel = {fuel_mat_name: [] for fuel_mat_name in getdict(fuel_pebbles_dict, 'mat_name')}
-for fuel_mat_name in getdict(fuel_pebbles_dict, 'mat_name'):
+nuclides_list = {mat_name: [] for mat_name in getdict(active_pebbles_dict, 'mat_name')}
+fresh_fuel = {mat_name: [] for mat_name in getdict(active_pebbles_dict, 'mat_name')}
+for mat_name in getdict(active_pebbles_dict, 'mat_name'):
     for serpent_mat in serpent_materials:
-        if serpent_mat.startswith(f'{fuel_mat_name}z'):
-            nuclides_list[fuel_mat_name] = list(Serpent_get_values(f'composition_{serpent_mat}_zai', serpent))
-            fresh_fuel[fuel_mat_name] = list(Serpent_get_values(f'composition_{serpent_mat}_adens', serpent))
+        if serpent_mat.startswith(f'{mat_name}z'):
+            nuclides_list[mat_name] = list(Serpent_get_values(f'composition_{serpent_mat}_zai', serpent))
+            fresh_fuel[mat_name] = list(Serpent_get_values(f'composition_{serpent_mat}_adens', serpent))
             break
 
 #%% Create transferrables, which will be callable during calculation (Serpent <=> Python)
@@ -316,22 +322,28 @@ tra = dict()
 tra['plot']          = Serpent_set_values("plot_geometry", 1, serpent, communicate=False) # Can be called to plot latest position/geometry
 tra['write_restart'] = get_transferrable("write_restart", serpent, input_parameter=True) # Can be called to plot latest position/geometry
 tra['xyzr_in']       = get_transferrable(f"pbed_{pbed_universe_name}_xyzr", serpent, input_parameter=True) # Can be called to change pebbles positions
-tra['burnup_in'] = {fuel_mat_name: Serpent_get_material_wise(fuel_mat_name, 'burnup', serpent, input_parameter=True) for fuel_mat_name in getdict(fuel_pebbles_dict, 'mat_name')}
-tra['reset_fuel'] = {fuel_mat_name: Serpent_get_material_wise(fuel_mat_name, 'reset', serpent, prefix='composition', input_parameter=True) for fuel_mat_name in getdict(fuel_pebbles_dict, 'mat_name')}
-tra['burnable_fuel'] = {fuel_mat_name: Serpent_get_material_wise(fuel_mat_name, 'burnable', serpent, prefix='material', input_parameter=True) for fuel_mat_name in getdict(fuel_pebbles_dict, 'mat_name')}
+tra['burnup_in'] = {mat_name: Serpent_get_material_wise(mat_name, 'burnup', serpent, input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
+tra['reset_fuel'] = {mat_name: Serpent_get_material_wise(mat_name, 'reset', serpent, prefix='composition', input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
+tra['burnable_fuel'] = {mat_name: Serpent_get_material_wise(mat_name, 'burnable', serpent, prefix='material', input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
 
 if domain_decomposition:
-    tra['domain_in'] = {fuel_mat_name: get_transferrable(f"material_div_{fuel_mat_name}_domain", serpent, input_parameter=True) for fuel_mat_name in getdict(fuel_pebbles_dict, 'mat_name')}
+    tra['domain_in'] = {mat_name: get_transferrable(f"material_div_{mat_name}_domain", serpent, input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
 
-for threshold_type in np.unique(getdict(fuel_pebbles_dict, 'threshold_type')):
-    if threshold_type not in ['passes', 'burnup']:
-        tra[f'{threshold_type}_in'] = {fuel_mat_name: Serpent_get_material_wise(fuel_mat_name, threshold_type, serpent, prefix='material', input_parameter=True) for fuel_mat_name in getdict(fuel_pebbles_dict, 'mat_name')}
+# for threshold_type in np.unique(getdict(threshold_pebbles_dict, 'threshold_type')):
+#     if threshold_type not in ['passes' ]:
+#         tra[f'{threshold_type}_in'] = {mat_name: Serpent_get_material_wise(mat_name, threshold_type, serpent, prefix='material', input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
+
+for uni_id, (uni_name, uni) in enumerate(threshold_pebbles_dict.items()):
+    if uni['threshold_type'] != 'passes':
+        tra[f"{threshold_type}_{uni['mat_name']}_in"] = get_transferrable(f"material_div_{uni['mat_name']}_{uni['threshold_type']}", serpent, input_parameter=True)
+
+
 
 tra['switch_mode']   = get_transferrable('burn_step_type', serpent, input_parameter=True) # Can be called to switch between decay mode and depletion mode (useful for decay)
 tra['time_in']       = get_transferrable('burn_time', serpent, input_parameter=True) # Can be called to control the simulation time (useful for decay)
 
 # Set fuel volumes
-for uni_id, (uni_name, uni) in enumerate(fuel_pebbles_dict.items()):
+for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
     V_per_pebble = 4/3 * np.pi * uni['r_fuel_kernel']**3 * uni['Ntrisos']
     N = data[f'pebble_type_{uni_id}'].sum()
     print(f'Calculated volume for {uni["mat_name"]}: {V_per_pebble:.2E} cm^3 (x{N} pebbles)')
@@ -351,13 +363,13 @@ except:
 #### Serpent => Python #####
 tra['keff']          = get_transferrable('ANA_KEFF', serpent) # Monitor multiplication factor
 tra['keff_rel_unc']          = get_transferrable('ANA_KEFF_rel_unc', serpent) # Monitor multiplication factor
-tra['bu_out'] = {fuel_mat_name: get_transferrable(f"material_div_{fuel_mat_name}_burnup", serpent) for fuel_mat_name in getdict(fuel_pebbles_dict, 'mat_name')} # Monitor burnup (MWd/kg)
-tra['fima_out'] = {fuel_mat_name: get_transferrable(f"material_div_{fuel_mat_name}_fima", serpent) for fuel_mat_name in getdict(fuel_pebbles_dict, 'mat_name')} # Monitor burnup (%fima)
-# tra['decayheat'] = {fuel_mat_name: get_transferrable(f"material_div_{fuel_mat_name}_decayheat", serpent) for fuel_mat_name in getdict(fuel_pebbles_dict, 'mat_name')} # Monitor decay heat, values make no sense (Serpent code to change?), and does not work with DD
+tra['bu_out'] = {mat_name: get_transferrable(f"material_div_{mat_name}_burnup", serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')} # Monitor burnup (MWd/kg)
+tra['fima_out'] = {mat_name: get_transferrable(f"material_div_{mat_name}_fima", serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')} # Monitor burnup (%fima)
+# tra['decayheat'] = {mat_name: get_transferrable(f"material_div_{mat_name}_decayheat", serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')} # Monitor decay heat, values make no sense (Serpent code to change?), and does not work with DD
 
 # Monitor isotopes in inventory
 for name in inventory_names:
-    tra[name] = {fuel_mat_name: get_transferrable(f'material_div_{fuel_mat_name}_{name}', serpent) for fuel_mat_name in getdict(fuel_pebbles_dict, 'mat_name')}
+    tra[name] = {mat_name: get_transferrable(f'material_div_{mat_name}_{name}', serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
 
 # Monitor tallies
 for name in detector_names:
@@ -374,10 +386,10 @@ pbed.data['id'] = data['id']
 
 pbed.data['isactive'] = False
 for uni_id, (uni_name, uni) in enumerate(pebbles_dict.items()):
-    
-    if ('threshold_type' in uni.keys() and uni['threshold_type']) or 'threshold' in uni.keys():
-        pbed.data.loc[data['uni'] == uni_name, 'isactive'] = True
     pbed.data[f'pebble_type_{uni_id}'] = (data['uni'] == uni_name)
+    if 'mat_name' in uni.keys():
+        pbed.data.loc[data['uni'] == uni_name, 'mat_name'] = uni['mat_name']
+        pbed.data.loc[data['uni'] == uni_name, 'isactive'] = True
 
 if domain_decomposition:
     pbed.data.loc[pbed.data['isactive'], 'domain_id'] = data['domain_id']
@@ -416,16 +428,13 @@ if restart_calculation:
     pbed.data[data.columns] = data.copy()
 else:
     # Initialize fields corresponding to thresholds
-    for threshold_type in np.unique(getdict(fuel_pebbles_dict, 'threshold_type')):
-        if threshold_type == 'passes':
-            for uni_id, (uni_name, uni) in enumerate(pebbles_dict.items()):
-                pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], threshold_type] = np.random.randint(1, step_wise_variables[f"threshold_{uni['mat_name']}"][0] + 1, pbed.data[f'pebble_type_{uni_id}'].sum())
+    for uni_id, (uni_name, uni) in enumerate(threshold_pebbles_dict.items()):
+        if uni['threshold_type'] == 'passes':
+            pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'passes'] = np.random.randint(1, step_wise_variables[f"threshold_{uni['mat_name']}"][0] + 1, pbed.data[f'pebble_type_{uni_id}'].sum())
         else:
-            for uni_id, (uni_name, uni) in enumerate(fuel_pebbles_dict.items()):
-                fuel_name = uni['mat_name']
-                Serpent_set_multiple_values(tra[f'{threshold_type}_in'][fuel_name], np.random.uniform(0, step_wise_variables[f"threshold_{uni['mat_name']}"][0], pbed.data[f'pebble_type_{uni_id}'].sum()))
+            Serpent_set_values(tra[f"{threshold_type}_{uni['mat_name']}_in"], np.random.uniform(0, step_wise_variables[f"threshold_{uni['mat_name']}"][0], pbed.data[f'pebble_type_{uni_id}'].sum()))
 
-for uni_id, (uni_name, uni) in enumerate(fuel_pebbles_dict.items()):
+for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
     fuel_name = uni['mat_name']
 
     # Burnup
@@ -569,8 +578,8 @@ for step in range(first_step, Nsteps):
 
         # Detect discarded pebbles based on set threshold
         pbed.data['discarded'] = False
-        print(f'\tDiscard test for {len(fuel_pebbles_dict)} types of pebbles:')
-        for i, (uni_name, uni) in enumerate(fuel_pebbles_dict.items()):
+        print(f'\tDiscard test for {len(threshold_pebbles_dict)} types of pebbles:')
+        for i, (uni_name, uni) in enumerate(threshold_pebbles_dict.items()):
             threshold_type = uni['threshold_type']
             threshold_dir = uni['threshold_dir']
             var = f'threshold_{uni["mat_name"]}'
@@ -599,17 +608,17 @@ for step in range(first_step, Nsteps):
             Serpent_set_values(tra['switch_mode'], DECAY)
 
             # Pebbles which are not recirculated should not decay, make them "non-burnable"
-            for i, (uni_name, uni) in enumerate(fuel_pebbles_dict.items()):
+            for i, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
                 not_decaying = ~pbed.data.loc[pbed.data[f'pebble_type_{i}'], "recirculated"].values # select non-recirculated pebbles
-                Serpent_set_multiple_values(tra['burnable_fuel'][getdict(fuel_pebbles_dict, 'mat_name')[i]][not_decaying], np.zeros(not_decaying.sum(), dtype=int)) # make them non-burnable
+                Serpent_set_multiple_values(tra['burnable_fuel'][getdict(active_pebbles_dict, 'mat_name')[i]][not_decaying], np.zeros(not_decaying.sum(), dtype=int)) # make them non-burnable
 
             # Decay burnable pebbles
             serpent.advance_to_time(curr_time + decay_step*DAYS)
 
             # Come back to normal
-            for i, (uni_name, uni) in enumerate(fuel_pebbles_dict.items()):
+            for i, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
                 not_decaying = ~pbed.data.loc[pbed.data[f'pebble_type_{i}'], "recirculated"].values
-                Serpent_set_multiple_values(tra['burnable_fuel'][getdict(fuel_pebbles_dict, 'mat_name')[i]][not_decaying], np.ones(not_decaying.sum(), dtype=int))
+                Serpent_set_multiple_values(tra['burnable_fuel'][getdict(active_pebbles_dict, 'mat_name')[i]][not_decaying], np.ones(not_decaying.sum(), dtype=int))
 
             Serpent_set_values(tra['switch_mode'], DEPLETION) # back to depletion mode
             Serpent_set_values(tra['time_in'], curr_time) # we artificially applied decay for a given time, but time should not change: come back to time before decay
@@ -627,7 +636,7 @@ for step in range(first_step, Nsteps):
         # Insert fresh pebbles
         print(f'\tInserting {Ndiscarded} fresh pebbles')
         if transport:
-            for uni_id, (uni_name, uni) in enumerate(fuel_pebbles_dict.items()):
+            for uni_id, (uni_name, uni) in enumerate(threshold_pebbles_dict.items()):
                 material = uni['mat_name']
                 Serpent_set_multiple_values(tra['reset_fuel'][material][pbed.data.loc[pbed.data[f"pebble_type_{uni_id}"], "discarded"]], np.ones(Ndiscarded).astype(int)) # Reset fuel composition for discarded pebbles (=>fresh)
                 Serpent_set_multiple_values(tra['burnup_in'][material][pbed.data.loc[pbed.data[f"pebble_type_{uni_id}"], "discarded"]], np.zeros(Ndiscarded)) # Reset burnup for discarded pebbles to 0
@@ -648,7 +657,7 @@ for step in range(first_step, Nsteps):
         pbed.reinserted_fuel_data = pbed.data.loc[(pbed.data['isactive']) & (pbed.data['recirculated']), pbed.reinserted_fuel_data.columns].copy()
         
         for name in inventory_names:
-            for uni_id, (uni_name, uni) in enumerate(fuel_pebbles_dict.items()):
+            for uni_id, (uni_name, uni) in enumerate(threshold_pebbles_dict.items()):
                 id_nuc = nuclides_list[uni['mat_name']].index(int(name))
                 discarded = (pbed.data['discarded']) & (pbed.data[f'pebble_type_{uni_id}'])
                 if discarded.sum() > 0:
@@ -691,7 +700,7 @@ for step in range(first_step, Nsteps):
             # pbed.data.loc[pbed.data['isactive'], 'decay_heat'] = Serpent_get_values(tra['decay_heat']).astype(float)
 
         # Extract burnups and calculate pass burnup
-        for uni_id, (uni_name, uni) in enumerate(fuel_pebbles_dict.items()):
+        for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
             material = uni['mat_name']
             pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'burnup'] = Serpent_get_values(tra['bu_out'][material]).astype(float)
             pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'fima'] = Serpent_get_values(tra['fima_out'][material]).astype(float)
@@ -703,7 +712,7 @@ for step in range(first_step, Nsteps):
             pbed.data.loc[(pbed.data['isactive'] & (pbed.data['recirculated'])), 'pass_burnup'] = pbed.data.loc[(pbed.data['isactive'] & (pbed.data['recirculated'])), 'burnup'] - pbed.old_data.loc[(pbed.data['isactive'] & (pbed.data['recirculated'])), 'burnup']
 
         # Extract isotopic inventory
-        for uni_id, (uni_name, uni) in enumerate(fuel_pebbles_dict.items()):
+        for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
             material = uni['mat_name']
             for name in inventory_names:
                 pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], name] = Serpent_get_values(tra[name][material])
