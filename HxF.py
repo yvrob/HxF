@@ -1,7 +1,7 @@
 # Known issues:
 # - Restart, first step is completely wrong, but then it works fine (no impact seen)
 # - Domain decomposition, if uncommented, takes too long to update domains -> changes to Serpent source code to do
-# - Thresholds different than burnup/passes did not work: to test
+# - 0 files randomly appearing
 
 print("""
 ============================================================
@@ -329,15 +329,9 @@ tra['burnable_fuel'] = {mat_name: Serpent_get_material_wise(mat_name, 'burnable'
 if domain_decomposition:
     tra['domain_in'] = {mat_name: get_transferrable(f"material_div_{mat_name}_domain", serpent, input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
 
-# for threshold_type in np.unique(getdict(threshold_pebbles_dict, 'threshold_type')):
-#     if threshold_type not in ['passes' ]:
-#         tra[f'{threshold_type}_in'] = {mat_name: Serpent_get_material_wise(mat_name, threshold_type, serpent, prefix='material', input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
-
 for uni_id, (uni_name, uni) in enumerate(threshold_pebbles_dict.items()):
     if uni['threshold_type'] != 'passes':
-        tra[f"{threshold_type}_{uni['mat_name']}_in"] = get_transferrable(f"material_div_{uni['mat_name']}_{uni['threshold_type']}", serpent, input_parameter=True)
-
-
+        tra[f"{uni['threshold_type']}_{uni['mat_name']}_in"] = get_transferrable(f"material_div_{uni['mat_name']}_{uni['threshold_type']}", serpent, input_parameter=True)
 
 tra['switch_mode']   = get_transferrable('burn_step_type', serpent, input_parameter=True) # Can be called to switch between decay mode and depletion mode (useful for decay)
 tra['time_in']       = get_transferrable('burn_time', serpent, input_parameter=True) # Can be called to control the simulation time (useful for decay)
@@ -365,7 +359,8 @@ tra['keff']          = get_transferrable('ANA_KEFF', serpent) # Monitor multipli
 tra['keff_rel_unc']          = get_transferrable('ANA_KEFF_rel_unc', serpent) # Monitor multiplication factor
 tra['bu_out'] = {mat_name: get_transferrable(f"material_div_{mat_name}_burnup", serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')} # Monitor burnup (MWd/kg)
 tra['fima_out'] = {mat_name: get_transferrable(f"material_div_{mat_name}_fima", serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')} # Monitor burnup (%fima)
-# tra['decayheat'] = {mat_name: get_transferrable(f"material_div_{mat_name}_decayheat", serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')} # Monitor decay heat, values make no sense (Serpent code to change?), and does not work with DD
+tra['decayheat'] = {mat_name: get_transferrable(f"material_div_{mat_name}_decayheat", serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')} # Monitor decay heat, values make no sense (Serpent code to change?), and does not work with DD
+tra['activity'] = {mat_name: get_transferrable(f"material_div_{mat_name}_activity", serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')} # Monitor activity, values make no sense (Serpent code to change?), and does not work with DD
 
 # Monitor isotopes in inventory
 for name in inventory_names:
@@ -432,7 +427,7 @@ else:
         if uni['threshold_type'] == 'passes':
             pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'passes'] = np.random.randint(1, step_wise_variables[f"threshold_{uni['mat_name']}"][0] + 1, pbed.data[f'pebble_type_{uni_id}'].sum())
         else:
-            Serpent_set_values(tra[f"{threshold_type}_{uni['mat_name']}_in"], np.random.uniform(0, step_wise_variables[f"threshold_{uni['mat_name']}"][0], pbed.data[f'pebble_type_{uni_id}'].sum()))
+            Serpent_set_values(tra[f"{uni['threshold_type']}_{uni['mat_name']}_in"], np.random.uniform(0, step_wise_variables[f"threshold_{uni['mat_name']}"][0], pbed.data[f'pebble_type_{uni_id}'].sum()))
 
 for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
     fuel_name = uni['mat_name']
@@ -440,6 +435,8 @@ for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
     # Burnup
     pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'burnup'] = Serpent_get_values(tra['bu_out'][fuel_name]).astype(float)
     pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'fima'] = Serpent_get_values(tra['fima_out'][fuel_name]).astype(float)
+    pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'decayheat'] = Serpent_get_values(tra['decayheat'][fuel_name]).astype(float)
+    pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'activity'] = Serpent_get_values(tra['activity'][fuel_name]).astype(float)
 
     # Initialize columns for each isotope in inventory
     pbed.data[inventory_names] = np.nan
