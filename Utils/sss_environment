@@ -2,15 +2,18 @@
 
 # Load necessary modules
 echo "Loading modules..."
-module_list=("python" "gcc" "cmake" "nano")
+module_list=("python/3.8.8" "gcc/12.1.0"  "openmpi/4.1.4-gcc" "cmake/3.22.0" "nano/2.7.4")
 for module in "${module_list[@]}"
 do
-    if [ $(module list 2>&1 | grep "$module/" | wc -l) > 0 ]
+    module_name="${module%%/*}"
+    if [ $(module list 2>&1 | grep "$module_name/" | wc -l) -gt 0 ]
     then
-        module unload $module_to_unload
+        echo "    Unloaded previously loaded version of $module_name"
+        module unload $module
     fi
+    echo "    Loading $module"
+    module load $module
 done
-module load python/3.8.8 gcc openmpi cmake/3.22.0 nano
 
 # Initialize Conda environment
 echo "Initializing Conda environment..."

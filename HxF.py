@@ -1,7 +1,6 @@
 # Known issues:
 # - Restart, first step is completely wrong, but then it works fine (no impact seen)
 # - Domain decomposition, if uncommented, takes too long to update domains -> changes to Serpent source code to do
-# - 0 files randomly appearing
 
 print("""
 ============================================================
