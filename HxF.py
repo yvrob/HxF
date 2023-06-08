@@ -358,8 +358,8 @@ tra['keff']          = get_transferrable('ANA_KEFF', serpent) # Monitor multipli
 tra['keff_rel_unc']          = get_transferrable('ANA_KEFF_rel_unc', serpent) # Monitor multiplication factor
 tra['bu_out'] = {mat_name: get_transferrable(f"material_div_{mat_name}_burnup", serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')} # Monitor burnup (MWd/kg)
 tra['fima_out'] = {mat_name: get_transferrable(f"material_div_{mat_name}_fima", serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')} # Monitor burnup (%fima)
-tra['decayheat'] = {mat_name: get_transferrable(f"material_div_{mat_name}_decayheat", serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')} # Monitor decay heat, values make no sense (Serpent code to change?), and does not work with DD
-tra['activity'] = {mat_name: get_transferrable(f"material_div_{mat_name}_activity", serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')} # Monitor activity, values make no sense (Serpent code to change?), and does not work with DD
+tra['decayheat'] = {mat_name: get_transferrable(f"material_div_{mat_name}_decayheat", serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')} # Monitor decay heat, does not work with DD?
+tra['activity'] = {mat_name: get_transferrable(f"material_div_{mat_name}_activity", serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')} # Monitor activity, does not work with DD?
 
 # Monitor isotopes in inventory
 for name in inventory_names:
@@ -431,7 +431,7 @@ else:
 for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
     fuel_name = uni['mat_name']
 
-    # Burnup
+    # Get pebble-wise values
     pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'burnup'] = Serpent_get_values(tra['bu_out'][fuel_name]).astype(float)
     pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'fima'] = Serpent_get_values(tra['fima_out'][fuel_name]).astype(float)
     pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'decayheat'] = Serpent_get_values(tra['decayheat'][fuel_name]).astype(float)
@@ -700,6 +700,8 @@ for step in range(first_step, Nsteps):
             material = uni['mat_name']
             pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'burnup'] = Serpent_get_values(tra['bu_out'][material]).astype(float)
             pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'fima'] = Serpent_get_values(tra['fima_out'][material]).astype(float)
+            pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'decayheat'] = Serpent_get_values(tra['decayheat'][material]).astype(float)
+            pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'activity'] = Serpent_get_values(tra['activity'][material]).astype(float)
         if step > 0:
             # Pass burnup incremented for fuel pebbles
             pbed.data.loc[(pbed.data['isactive'] & (~pbed.data['recirculated'])), 'pass_burnup'] += pbed.data.loc[pbed.data['isactive'], 'burnup'] - pbed.old_data.loc[pbed.data['isactive'], 'burnup']

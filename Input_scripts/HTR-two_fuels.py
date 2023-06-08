@@ -104,5 +104,5 @@ if saving:
     write_discarded = True
     write_discharged = True
 
-# if plotting:
-#     core_plot = [['id', 'pass_residence_time', 'residence_time', 'passes', 'burnup'], detector_names + [f'integrated_{name}' for name in detector_names]]
+if plotting:
+    core_plot = [['id', 'pass_residence_time', 'residence_time', 'passes', 'burnup'], detector_names + [f'integrated_{name}' for name in detector_names]]

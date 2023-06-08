@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Python scripts
-INPUT_SCRIPT="./Input_scripts/HTR-test.py" # Python input
+INPUT_SCRIPT="./Input_scripts/HTR-two_fuels.py" # Python input
 PYTHON_SCRIPT="HxF.py" # Main script (should not be changed)
 
 # Conda environment
