@@ -9,7 +9,7 @@ do
     if [ $(module list 2>&1 | grep "$module_name/" | wc -l) -gt 0 ]
     then
         echo "    Unloaded previously loaded version of $module_name"
-        module unload $module
+        module unload $module_name
     fi
     echo "    Loading $module"
     module load $module
