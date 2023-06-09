@@ -198,28 +198,23 @@ print()
 
 # Assign random universe, based on fuel fraction, if not restarting
 if not restart_calculation:
-    active_pebbles_dict = dict()
-    threshold_pebbles_dict = dict()
     pebbles_fracs = getdict(pebbles_dict, 'pebbles_frac')
     pebbles_fracs /= pebbles_fracs.sum() # normalize fractions
     print(f'Assigning random universes {pebbles_dict.keys()} corresponding to {getdict(pebbles_dict, "mat_name")} with fractions of {pebbles_fracs*100}%\n')
     data['uni'] = assign_random_array(np.arange(data.shape[0]), getdict(pebbles_dict), list(pebbles_fracs)) # Split into fuel and non-fuel
-    data['isactive'] = False
-    for uni_id, (uni_name, uni) in enumerate(pebbles_dict.items()):
-        data[f'pebble_type_{uni_id}'] = (data['uni'] == uni_name)
-        if 'mat_name' in uni.keys():
-            data.loc[data['uni'] == uni_name, 'mat_name'] = uni['mat_name']
-            data.loc[data['uni'] == uni_name, 'isactive'] = True
-            active_pebbles_dict[uni_name] = pebbles_dict[uni_name]
-        #     if any(str(element) in ['922330', '942380', '902320', '922380', '922350', '942390', '942410'] for element in nuclides_list[uni['mat_name']]):
-        #         data.loc[data['uni'] == uni_name, 'isactive'] = True
-        #         active_pebbles_dict[uni_name] = pebbles_dict[uni_name]
 
-        if ('threshold_type' in uni.keys() and uni['threshold_type']) or 'threshold' in uni.keys():
-            # data.loc[data['uni'] == uni_name, 'isactive'] = True
-            threshold_pebbles_dict[uni_name] = pebbles_dict[uni_name]
-
-
+# Identify pebbles type based on universe and thresholds
+active_pebbles_dict = dict()
+threshold_pebbles_dict = dict()
+data['isactive'] = False
+for uni_id, (uni_name, uni) in enumerate(pebbles_dict.items()):
+    data[f'pebble_type_{uni_id}'] = (data['uni'] == uni_name)
+    if 'mat_name' in uni.keys():
+        data.loc[data['uni'] == uni_name, 'mat_name'] = uni['mat_name']
+        data.loc[data['uni'] == uni_name, 'isactive'] = True
+        active_pebbles_dict[uni_name] = pebbles_dict[uni_name]
+    if ('threshold_type' in uni.keys() and uni['threshold_type']) or 'threshold' in uni.keys():
+        threshold_pebbles_dict[uni_name] = pebbles_dict[uni_name]
 
 # Domain decomposition
 
