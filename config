@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Python scripts
-INPUT_SCRIPT="./Input_scripts/HTR-two_fuels.py" # Python input
+INPUT_SCRIPT="./Input_scripts/HTR10.py" # Python input
 PYTHON_SCRIPT="HxF.py" # Main script (should not be changed)
 
 # Conda environment
@@ -9,10 +9,10 @@ CONDA_ENVIRONMENT="kraken" # Name of conda environment created with setup_Cerber
 CONFIGURATION_FILE="./Utils/sss_environment" # Script loading conda environment and variables (should not be changed)
 
 # Cluster configuration
-GROUP_ACCOUNT="ac_advreactors" #"co_nuclear" # Name of the account to use (e.g. co_nuclear, fc_neutronics)
-PARTITION="savio3" # Name of partition (e.g. savio, savio2, savio3, savio2_bigmem, ...)
+GROUP_ACCOUNT="co_nuclear" #"co_nuclear" # Name of the account to use (e.g. co_nuclear, fc_neutronics)
+PARTITION="savio" # Name of partition (e.g. savio, savio2, savio3, savio2_bigmem, ...)
 NNODES=1 # Number of nodes to use
-QOS="savio_normal" # QoS associated to group account (savio_normal for fc_neutronics, nuclear_savio_normal for co_nuclear)
+QOS="nuclear_savio_normal" # QoS associated to group account (savio_normal for fc_neutronics, nuclear_savio_normal for co_nuclear)
 NHOURS=1 # Time limit in hours for the job
 SUFFIX_JOB="" # Suffix (if needed) for the job name, otherwise takes the name of the Python input script
 

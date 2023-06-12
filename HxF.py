@@ -166,6 +166,28 @@ if not discrete_motion:
 
     if restart_calculation or read_firt_compositions:
         data = pd.read_csv(restart_data, index_col=0)
+
+        # Just for checking, check that positions in data correspond to the right positions
+        nsteps_to_loop = (DEM_end-DEM_start)/DEM_step_increment # won't work if different step increments! after how many steps do we loop
+        if first_step<=nsteps_to_loop: # if first loop (original), no modification
+            nloops = 0
+            equivalent_step = first_step
+        else: # need to have an equivalent step, and apply transition indices as many times as there were loops
+            nloops = int((first_step-1)//nsteps_to_loop)
+            equivalent_step = int((first_step-1)%nsteps_to_loop)+1
+        if restart_calculation:
+            print(f'\tFirst check if restart positions are in agreement with file: {position_files[equivalent_step]} (loop #{nloops}, equivalent step #{equivalent_step})')
+            positions = pd.read_csv(position_files[equivalent_step])[['x','y','z']]*positions_scale + np.array(positions_translation) # read new positions from DEM file
+            # Apply looping transition, if needed
+            indices = np.arange(positions.shape[0], dtype=int)
+            for i in range(nloops): # does not go here if nloops=0
+                indices = indices[transition]
+            positions[['x', 'y', 'z']] = positions.loc[indices][['x', 'y', 'z']].values
+            if ((positions[['x', 'y', 'z']] - data[['x', 'y', 'z']]).abs().max()>1e-8).all():
+                print((positions[['x', 'y', 'z']] - data[['x', 'y', 'z']]).abs().max())
+                raise Exception('First positions are different from the restart positions, check input data, looped, etc.')
+            else:
+                print('\t\tOK.')
     else:
         data = pd.read_csv(position_files[0])[['x','y','z']]*positions_scale + np.array(positions_translation) # read new positions from DEM file
         data['r'] = r_pebbles # Change radii
@@ -530,7 +552,8 @@ for step in range(first_step, Nsteps):
                 nloops = int((step-1)//nsteps_to_loop)
                 equivalent_step = int((step-1)%nsteps_to_loop)+1
                 if nloops!=0 and equivalent_step==1:
-                    print(f'Looping! Number of times looped: {nloops}')
+                    print(f'\tLooping! Number of times looped: {nloops}')
+            print(f'\tUsing positions at file: {position_files[equivalent_step]} (loop #{nloops}, equivalent step #{equivalent_step})')
             new_positions = pd.read_csv(position_files[equivalent_step])[['x','y','z']]*positions_scale + np.array(positions_translation) # read new positions from DEM file
 
             # Apply looping transition, if needed

@@ -122,3 +122,36 @@ def looper(files, DEM_start, DEM_end, Nr, Nz, method):
     error_rz = np.linalg.norm(errors_rz)
     return DEM_start, DEM_end, transition, error_rz
 
+if __name__ == '__main__':
+    from Utilities import natural_sort
+    import os
+    from glob import glob
+
+    step = 750
+    positions_folder = '/global/scratch/users/co_nuclear/pebble_positions_larger/'
+
+    print(f'Using DEM motion from folder {positions_folder}')
+    if not os.path.exists(positions_folder):
+        raise Exception(f'DEM motion selected but positions folder {positions_folder} does not exist.')
+    position_files = natural_sort(glob(positions_folder+'/step*.csv')) # List all positions found with DEM
+    DEM_start, DEM_end, transition, error_rz = looper(position_files, DEM_start, DEM_end, looper_Nr, looper_Nz, looper_method)
+    print(f'Looper ready: from DEM step {DEM_start} to {DEM_end} (err={error_rz:.2f})')
+
+    # Just for checking, check that positions in data correspond to the right positions
+    nsteps_to_loop = (DEM_end-DEM_start)/DEM_step_increment # won't work if different step increments! after how many steps do we loop
+    if step<=nsteps_to_loop: # if first loop (original), no modification
+        nloops = 0
+        equivalent_step = step
+    else: # need to have an equivalent step, and apply transition indices as many times as there were loops
+        nloops = int((step-1)//nsteps_to_loop)
+        equivalent_step = int((step-1)%nsteps_to_loop)+1
+    
+    print(f'\tFirst check: Using positions at file: {position_files[equivalent_step]} (loop #{nloops}, equivalent step #{equivalent_step})')
+    positions = pd.read_csv(position_files[equivalent_step])[['x','y','z']]*positions_scale + np.array(positions_translation) # read new positions from DEM file
+    
+    # Apply looping transition, if needed
+    indices = np.arange(positions.shape[0], dtype=int)
+    for i in range(nloops): # does not go here if nloops=0
+        indices = indices[transition]
+    positions[['x', 'y', 'z']] = positions.loc[indices][['x', 'y', 'z']].values
+    print(positions)
