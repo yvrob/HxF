@@ -723,7 +723,7 @@ for step in range(first_step, Nsteps):
             pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'activity'] = Serpent_get_values(tra['activity'][material]).astype(float)
         if step > 0:
             # Pass burnup incremented for fuel pebbles
-            pbed.data.loc[(pbed.data['isactive'] & (~pbed.data['recirculated'])), 'pass_burnup'] += pbed.data.loc[pbed.data['isactive'], 'burnup'] - pbed.old_data.loc[pbed.data['isactive'], 'burnup']
+            pbed.data.loc[pbed.data['isactive'], 'pass_burnup'] += pbed.data.loc[pbed.data['isactive'], 'burnup'] - pbed.old_data.loc[pbed.data['isactive'], 'burnup']
 
             # Special case for pebbles which recirculated
             pbed.data.loc[(pbed.data['isactive'] & (pbed.data['recirculated'])), 'pass_burnup'] = pbed.data.loc[(pbed.data['isactive'] & (pbed.data['recirculated'])), 'burnup'] - pbed.old_data.loc[(pbed.data['isactive'] & (pbed.data['recirculated'])), 'burnup']
