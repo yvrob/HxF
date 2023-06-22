@@ -44,6 +44,7 @@ import sys
 from copy import deepcopy
 import inspect
 import shutil
+np.random.seed(12345)
 
 #%% Read input from file
 print('Reading input\n')
@@ -538,7 +539,7 @@ for step in range(first_step, Nsteps):
             for i in range(0, len(zrows[::2])):
                 if motion_direction * zrows[2*i] > motion_direction * zlim:
                     beyond_lim = (((new_positions['z']-zrows[2*i]).abs()<1e-3) | ((new_positions['z']-zrows[2*i+1]).abs()<1e-3))
-                    new_positions[beyond_lim] = new_positions[beyond_lim].sample(frac=1).values
+                    new_positions[beyond_lim] = new_positions[beyond_lim].sample(frac=1, random_state=np.random.randint(1,1000)).values
 
             # Shift pebbles that should recirculate
             new_positions.loc[motion_direction * new_positions['z'] >= motion_direction * zlim, 'z'] += -motion_direction*(np.abs(zrows[-1]-zrows[0]+(zrows[1]-zrows[0])))

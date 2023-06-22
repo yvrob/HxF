@@ -10,7 +10,7 @@ import pandas as pd
 from cerberus.solvers import CodeInput, Solver
 import cerberus as cb
 import time
-
+np.random.seed(12345)
 def start_Serpent(serpent_executable, ncores, input_files, nnodes=1, verbosity=1):
 	cb.LOG.set_verbosity(verbosity)
 	# cb.LOG.set_compiled_table(True)

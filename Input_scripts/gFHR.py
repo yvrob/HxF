@@ -47,7 +47,7 @@ neutrons_per_cycle = [20000]*68*2+[500000]*(Nsteps-68*3)
 decay_step = 0 # days
 
 #%% Burnup cycle
-pebbles_dict = {'u_fuel_pebble':{'mat_name':'fuel', 'pebbles_frac':1, 'r_fuel_kernel':0.04275, 'Ntrisos':9022, 'threshold_type':'passes', 'threshold_dir':+1, 'threshold':8}}
+pebbles_dict = {'u_fuel_pebble':{'mat_name':'fuel', 'pebbles_frac':1, 'r_fuel_kernel':0.02125, 'Ntrisos':9022, 'threshold_type':'passes', 'threshold_dir':+1, 'threshold':8}}
 
 #%% Motion
 motion_direction = +1
