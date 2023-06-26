@@ -270,7 +270,7 @@ def init_case(case_name, python_input, path_to_case, output_name=None):
 	except:
 		pass
 	print(f'Creating folder at ./Cases/{output_name}/ and copying input')
-	for path_folder in [f'Cases/{output_name}/Plots/', f'Cases/{output_name}/Data/', f'Cases/{output_name}/Waste/', f'Cases/{output_name}/wrk_Serpent/']:
+	for path_folder in [f'Cases/{output_name}/Plots/', f'Cases/{output_name}/Data/', f'Cases/{output_name}/Restarts/', f'Cases/{output_name}/wrk_Serpent/']:
 		os.makedirs(path_folder, exist_ok=True)
 	for file in [python_input, 'Source/Default_Input.py']:
 		if file[-3:] != '.py':
@@ -280,10 +280,10 @@ def init_case(case_name, python_input, path_to_case, output_name=None):
 
 def reset_case(to_recreate='all'):
 	if isinstance(to_recreate, str) and to_recreate=='all':
-		to_recreate = ['./Plots/', './Data/', './Waste/', './wrk_Serpent/']
+		to_recreate = ['./Plots/', './Data/', './Restarts/', './wrk_Serpent/']
 	elif isinstance(to_recreate, str):
 		to_recreate = [to_recreate]
-	for path_folder in ['./Plots/', './Data/', './Waste/', './wrk_Serpent/']:
+	for path_folder in ['./Plots/', './Data/', './Restarts/', './wrk_Serpent/']:
 		if os.path.exists(path_folder):
 			shutil.rmtree(path_folder)
 	for path_folder in to_recreate:

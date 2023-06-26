@@ -378,6 +378,7 @@ tra['bu_out'] = {mat_name: get_transferrable(f"material_div_{mat_name}_burnup", 
 tra['fima_out'] = {mat_name: get_transferrable(f"material_div_{mat_name}_fima", serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')} # Monitor burnup (%fima)
 tra['decayheat'] = {mat_name: get_transferrable(f"material_div_{mat_name}_decayheat", serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')} # Monitor decay heat, does not work with DD?
 tra['activity'] = {mat_name: get_transferrable(f"material_div_{mat_name}_activity", serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')} # Monitor activity, does not work with DD?
+tra['wait'] = get_transferrable('ANA_KEFF', serpent) # Just one command to make Python wait for Serpent to finish the rest of the commands
 
 # Monitor isotopes in inventory
 for name in inventory_names:
@@ -630,6 +631,16 @@ for step in range(first_step, Nsteps):
             # Decay burnable pebbles
             serpent.advance_to_time(curr_time + decay_step*DAYS)
 
+            # Save materials in restart file if needed
+            if write_restart_discharged and step%restart_discharged_write_every==0:
+                print(f'\tWriting restart file for discharged pebbles for step {step}')
+                Serpent_set_values(tra['write_restart'], 999999)
+                Serpent_get_values(tra['wait']) # wait for files to be written
+                # Rename and move files
+                for restart_file in glob(f'wrk_Serpent/{main_input_file}.wrk_999999*'):
+                    suffix = restart_file.split('999999')[-1]
+                    shutil.move(restart_file, f'Restarts/{main_input_file}_discharged.wrk_{step}{suffix}')
+
             # Come back to normal
             for i, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
                 not_decaying = ~pbed.data.loc[pbed.data[f'pebble_type_{i}'], "recirculated"].values
@@ -637,6 +648,29 @@ for step in range(first_step, Nsteps):
 
             Serpent_set_values(tra['switch_mode'], DEPLETION) # back to depletion mode
             Serpent_set_values(tra['time_in'], curr_time) # we artificially applied decay for a given time, but time should not change: come back to time before decay
+
+
+        # Save discarded materials in restart file if needed
+        if write_restart_discarded and step%restart_discarded_write_every==0:
+
+            # Pebbles which are not discarded should not be saved, make them "non-burnable"
+            for i, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
+                not_discarded = ~pbed.data.loc[pbed.data[f'pebble_type_{i}'], "discarded"].values # select non-recirculated pebbles
+                Serpent_set_multiple_values(tra['burnable_fuel'][getdict(active_pebbles_dict, 'mat_name')[i]][not_discarded], np.zeros(not_discarded.sum(), dtype=int)) # make them non-burnable
+
+            # Save materials in restart file
+                print(f'\tWriting restart file for discharged pebbles for step {step}')
+                Serpent_set_values(tra['write_restart'], 999999)
+                Serpent_get_values(tra['wait']) # wait for files to be written
+                # Rename and move files
+                for restart_file in glob(f'wrk_Serpent/{main_input_file}.wrk_999999*'):
+                    suffix = restart_file.split('999999')[-1]
+                    shutil.move(restart_file, f'Restarts/{main_input_file}_discarded.wrk_{step}{suffix}')
+
+            # Come back to normal
+            for i, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
+                not_discarded = ~pbed.data.loc[pbed.data[f'pebble_type_{i}'], "discarded"].values
+                Serpent_set_multiple_values(tra['burnable_fuel'][getdict(active_pebbles_dict, 'mat_name')[i]][not_discarded], np.ones(not_discarded.sum(), dtype=int))
 
         # Store discharged information
         print(f'\tStoring {Nrecirculated} discharged pebbles information')
@@ -697,8 +731,14 @@ for step in range(first_step, Nsteps):
             if correct:
                 serpent.correct() # Run corrector step if using (predictor/corrector)
             if write_restart and step%restart_write_every==0:
-                print(f'\tWriting restart file for step {step}')
-                Serpent_set_values(tra['write_restart'], step)
+                print(f'\tWriting restart file for core for step {step}')
+                Serpent_set_values(tra['write_restart'], 999999)
+                Serpent_get_values(tra['wait']) # wait for files to be written
+                # Rename and move files
+                for restart_file in glob(f'wrk_Serpent/{main_input_file}.wrk_{step}*'):
+                    suffix = restart_file.split('999999')[-1]
+                    shutil.move(restart_file, f'Restarts/{main_input_file}.wrk_{step}{suffix}')
+
             print('\tWaiting for Serpent...')
             keff = Serpent_get_values(tra['keff'])[0]
             keff_rel_unc = Serpent_get_values(tra['keff_rel_unc'])[0]
@@ -710,10 +750,6 @@ for step in range(first_step, Nsteps):
     print('\tExtracting burnups, detectors and compositions')
 
     if transport:
-        # if not domain_decomposition:
-            # # Extract decay heat
-            # pbed.data.loc[pbed.data['isactive'], 'decay_heat'] = Serpent_get_values(tra['decay_heat']).astype(float)
-
         # Extract burnups and calculate pass burnup
         for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
             material = uni['mat_name']

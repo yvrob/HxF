@@ -33,7 +33,7 @@ pbed_file = 'pebbles.inp'
 r_pebbles = 3 # cm
 pebbles_dict = {'u_fuel1_pebble':{'mat_name':'fuel1', 'pebbles_frac':0.5, 'r_fuel_kernel':0.025, 'Ntrisos':8335, 'threshold_type':'551370', 'threshold_dir':+1, 'threshold':4e-5},
                 'u_fuel2_pebble':{'mat_name':'fuel2', 'pebbles_frac':0.2, 'r_fuel_kernel':0.025, 'Ntrisos':8335},
-                'u_graph_pebble':{'pebbles_frac':0.2}}
+                'u_graph_pebble':{'pebbles_frac':0.3}}
 
 # Others
 pbed_universe_name = 'u_pb'
