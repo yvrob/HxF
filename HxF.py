@@ -753,6 +753,7 @@ for step in range(first_step, Nsteps):
 
     if transport:
         # Extract field and calculate pass quantity
+        print_with_timestamp('\t\tExtracting extra fields:', extra_fields)
         for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
             material = uni['mat_name']
             for field in ['fima', 'decayheat', 'activity', 'burnup']:
@@ -767,12 +768,14 @@ for step in range(first_step, Nsteps):
                     pbed.data.loc[(pbed.data['isactive'] & (pbed.data['recirculated'])), f'pass_{field}'] = pbed.data.loc[(pbed.data['isactive'] & (pbed.data['recirculated'])), field] - pbed.old_data.loc[(pbed.data['isactive'] & (pbed.data['recirculated'])), field]
 
         # Extract isotopic inventory
+        print_with_timestamp('\t\tExtracting inventory:', extra_fields)
         for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
             material = uni['mat_name']
             for name in inventory_names:
                 pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], name] = Serpent_get_values(tra[name][material])
 
         # Extract detector values and uncertainties and calculate integrated values
+        print_with_timestamp('\t\tExtracting detector fields:', extra_fields)
         for name in list(detector_names):
             # Tallies
             pbed.data[name] = Serpent_get_values(tra[name])
@@ -827,60 +830,6 @@ for step in range(first_step, Nsteps):
             plot_core_fields(pbed.data, detectors_fields, num_cols=4, savefig=f'Plots/detectors_{step}.png'); plt.show()
         if len(inventory_names) > 0 and len(inventory_names) <= 20:
             plot_core_fields(pbed.data, inventory_names[:min(len(inventory_names), 20)], num_cols=5, savefig=f'Plots/detectors_{step}.png'); plt.show()
-
-        # # Create copy of table and fill non-fuel data with "nans"
-        # pbed_fuel = deepcopy(pbed)
-        # pbed_fuel.data.loc[~pbed.data['isactive'], pbed.data.columns.drop(['x', 'y', 'z', 'r', 'isactive'] + [f'pebble_type_{i}' for i in range(len(pebbles_dict))])] = np.nan
-        # cmap = cm.get_cmap('turbo')
-        # cmap.set_bad([0.8, 0.8, 0.8], alpha = 1.) # nans will appear gray
-
-        # # Slices of the core, with fuel-only or whole core
-        # plt.close('all')
-        # if transport:
-        #     plt.figure(figsize=(11.5, 15))
-        #     plt.subplot(3,4,1)
-        #     pbed.plot2D('id', field_title='Pebble ID', plot_title=f'Step {step}: {curr_time/DAYS:.1f} days', colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed.data['id'].max()], verbose=False)
-        #     plt.subplot(3,4,2)
-        #     pbed.plot2D('pass_residence_time', field_title='Pass residence time [days]', plot_title='', colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed.data['pass_residence_time'].max()], verbose=False)
-        #     plt.subplot(3,4,3)
-        #     pbed_fuel.plot2D('residence_time', field_title='Total residence time [days]', plot_title='', colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed_fuel.data['residence_time'].max()], verbose=False)
-        #     plt.subplot(3,4,4)
-        #     pbed_fuel.plot2D('passes', field_title='Number of passes', plot_title='',  colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[1, pbed_fuel.data['passes'].max()], verbose=False)
-        #     plt.subplot(3,4,5)
-        #     pbed.plot2D('flux_pebbles_thermal', field_title='Thermal flux [n/cm$^2$.s]', plot_title='',  colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed.data['flux_pebbles_thermal'].max()], verbose=False)
-        #     plt.subplot(3,4,6)
-        #     pbed.plot2D('flux_pebbles_fast', field_title='Fast flux [n/cm$^2$.s]', plot_title='',  colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed.data['flux_pebbles_fast'].max()], verbose=False)
-        #     plt.subplot(3,4,7)
-        #     pbed_fuel.plot2D('power_pebbles', field_title='Power [W]', plot_title='',  colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed_fuel.data['power_pebbles'].max()], verbose=False)
-        #     plt.subplot(3,4,8)
-        #     pbed_fuel.plot2D('burnup', field_title='Burnup [MWd/kg]', plot_title='',  colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed_fuel.data['burnup'].max()], verbose=False)
-        #     plt.subplot(3,4,9)
-        #     pbed_fuel.plot2D('integrated_flux_pebbles_thermal', field_title='Thermal fluence [n/cm$^2$]', plot_title='',  colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed_fuel.data['integrated_flux_pebbles_thermal'].max()], verbose=False)
-        #     plt.subplot(3,4,10)
-        #     pbed_fuel.plot2D('integrated_flux_pebbles_fast', field_title='Fast fluence [n/cm$^2$]', plot_title='',  colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed_fuel.data['integrated_flux_pebbles_fast'].max()], verbose=False)
-        #     plt.subplot(3,4,11)
-        #     pbed_fuel.plot2D('integrated_power_pebbles', field_title='Energy [Wd]', plot_title='',  colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed_fuel.data['integrated_power_pebbles'].max()], verbose=False)
-        #     plt.subplot(3,4,12)
-        #     pbed_fuel.plot2D('pass_burnup', field_title='$\Delta$BU [MWd/kg]', plot_title='',  colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed_fuel.data['pass_burnup'].max()], verbose=False)
-        # else:
-        #     plt.figure(figsize=(11.5, 15))
-        #     plt.subplot(1,4,1)
-        #     pbed.plot2D('id', field_title='Pebble ID', plot_title=f'Step {step}: {curr_time/DAYS:.1f} days', colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed.data['id'].max()], verbose=False)
-        #     plt.subplot(1,4,2)
-        #     pbed.plot2D('pass_residence_time', field_title='Pass residence time [days]', plot_title='', colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed.data['pass_residence_time'].max()], verbose=False)
-        #     plt.subplot(1,4,3)
-        #     pbed.plot2D('residence_time', field_title='Total residence time [days]', plot_title='', colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[0, pbed.data['residence_time'].max()], verbose=False)
-        #     plt.subplot(1,4,4)
-        #     pbed_fuel.plot2D('passes', field_title='Number of passes', plot_title='',  colormap=cmap, new_fig=False, shrink_cbar=0.9, pad_cbar=0.12, clim=[1, pbed.data['passes'].max()], verbose=False)
-        # plt.tight_layout()
-        # plt.savefig(f'Plots/core_{step}.png', dpi=400, bbox_inches='tight')# save to output
-
-        # # Plot discarded pebbles
-        # if len(pbed.discarded_data)>0:
-        #     plt.figure(figsize=(11.5, 15))
-        #     pbed.discarded_data.drop(columns=[i for i in pbed.discarded_data if '_unc' in i]).astype(float).hist() # Plot distributions for each quantity
-        #     plt.tight_layout()
-        #     plt.savefig(f'Plots/discarded_{step}.png', dpi=400, bbox_inches='tight')
 
         # Plot keff
         if transport:
