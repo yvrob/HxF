@@ -4,6 +4,7 @@ include detectors
 include geometry
 include burnup
 
+set depout 2 2
 set Cerberus_verbosity 0
 set ures 1
 set power 280000000.0
