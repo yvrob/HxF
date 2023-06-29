@@ -69,7 +69,7 @@ except:
     pass
 
 if 'burnup' not in extra_fields:
-    extra_fields.append(burnup)
+    extra_fields.append('burnup')
 
 # Print
 print_with_timestamp("Simulation Input Parameters Summary:")
@@ -372,10 +372,8 @@ try:
     tra[power_normalization_field] = get_transferrable(power_normalization_field, serpent, input_parameter=True) # Normalizes the power in Serpent
 except:
     pass
-try:
-    tra['neutrons_per_cycle'] = get_transferrable("neutrons_per_cycle", serpent, input_parameter=True) # Give number of neutrons to Serpent
-except:
-    pass
+tra['neutrons_per_cycle'] = get_transferrable("neutrons_per_cycle", serpent, input_parameter=True) # Give number of neutrons to Serpent
+
 
 #### Serpent => Python #####
 tra['keff']          = get_transferrable('ANA_KEFF', serpent) # Monitor multiplication factor
@@ -851,7 +849,7 @@ for step in range(first_step, Nsteps):
         if len(detectors_fields) > 0:
             plot_core_fields(pbed.data, detectors_fields, num_cols=4, savefig=f'Plots/detectors_{step}.png'); plt.show()
         if len(inventory_names) > 0 and len(inventory_names) <= 20:
-            plot_core_fields(pbed.data, inventory_names[:min(len(inventory_names), 20)], num_cols=5, savefig=f'Plots/detectors_{step}.png'); plt.show()
+            plot_core_fields(pbed.data, inventory_names[:min(len(inventory_names), 20)], num_cols=5, savefig=f'Plots/inventory_{step}.png'); plt.show()
 
         # Plot keff
         if transport:
