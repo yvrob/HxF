@@ -68,6 +68,9 @@ try:
 except:
     pass
 
+if 'burnup' not in extra_fields:
+    extra_fields.append(burnup)
+
 # Print
 print_with_timestamp("Simulation Input Parameters Summary:")
 print_with_timestamp("-" * 50)
@@ -262,8 +265,8 @@ print_with_timestamp('')
 # Prepare case
 if not use_decnfy_lib: # remove link to decay/nfy library if not needed
     print_with_timestamp('Not using decay/nfylibraries')
-    os.environ.pop('SERPENT_DECLIB', None)    
-    os.environ.pop('SERPENT_NFYLIB', None)    
+    os.environ.pop('SERPENT_DECLIB', None)
+    os.environ.pop('SERPENT_NFYLIB', None)
 
 serpent, serpent_input_files = start_Serpent(os.environ["SERPENT_EXE"], ncores, main_input_file, nnodes, verbosity_mode)
 nplots = count_plots(serpent_input_files) # count number of plot commands in input files
@@ -339,10 +342,12 @@ tra = dict()
 tra['plot']          = Serpent_set_values("plot_geometry", 1, serpent, communicate=False) # Can be called to plot latest position/geometry
 tra['write_restart'] = get_transferrable("write_restart", serpent, input_parameter=True) # Can be called to plot latest position/geometry
 tra['xyzr_in']       = get_transferrable(f"pbed_{pbed_universe_name}_xyzr", serpent, input_parameter=True) # Can be called to change pebbles positions
-tra['burnup_in'] = {mat_name: Serpent_get_material_wise(mat_name, 'burnup', serpent, input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
-tra['reset_fuel'] = {mat_name: Serpent_get_material_wise(mat_name, 'reset', serpent, prefix='composition', input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
+# tra['burnup_in'] = {mat_name: Serpent_get_material_wise(mat_name, 'burnup', serpent, input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
+# tra['reset_fuel'] = {mat_name: Serpent_get_material_wise(mat_name, 'reset', serpent, prefix='composition', input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
 # tra['burnable_fuel'] = {mat_name: Serpent_get_material_wise(mat_name, 'burnable', serpent, prefix='material', input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
 tra['burnable_fuel'] = {mat_name: get_transferrable(f"material_div_{mat_name}_burnable", serpent, input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
+tra['burnup_in'] = {mat_name: get_transferrable(f"material_div_{mat_name}_burnup", serpent, input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
+tra['reset_fuel'] = {mat_name: get_transferrable(f"material_div_{mat_name}_reset", serpent, input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
 
 # if domain_decomposition:
 #     tra['domain_in'] = {mat_name: get_transferrable(f"material_div_{mat_name}_domain", serpent, input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
@@ -466,16 +471,20 @@ for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
 
 #%% Initialize secondary information to get at each step
 
+# Keep only relevant information from before
+fields_to_carry = ['id', 'x', 'y', 'z', 'r', 'r_dist', 'row_id', 'col_id', 'uni', 'mat_name', 'isactive', 'initial', 'insertion_step', 'avg_r_dist', 'passes', 'recirculated', 'discarded', 'residence_time'] + [f'pebble_type_{i}' for i in range(len(pebbles_dict))] + extra_fields + list(np.array([[name, f'{name}_rel_unc', f'{name}_unc', f'integrated_{name}', f'integrated_{name}_rel_unc', f'integrated_{name}_unc'] for name in detector_names]).flatten()) + pass_dependent_names + list(inventory_names)
+if domain_decomposition:
+    fields_to_carry.append('domain_id')
+pbed.data = pbed.data[[field for field in fields_to_carry if field in pbed.data.columns]]
+
 pbed.cycle_hist = pd.DataFrame(columns=['time', 'passes', 'recirculated', 'discarded', 'keff', 'keff_relative_uncertainty', 'keff_absolute_uncertainty']+list(step_wise_variables.keys())) # keff at each time step
-pbed.discarded_data =  pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated','discarded', 'pass_agg_r_dist']+[f'pebble_type_{i}' for i in range(len(pebbles_dict))]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))+pass_dependent_names+['discard_step']) # Discarded pebbles data
-if 'uni' in pbed.discarded_data.columns:
-    pbed.discarded_data = pbed.discarded_data.drop(columns='uni')
-# pbed.discharged_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{i}' for i in range(len(pebbles_dict))]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))) # Discharged pebbles data
+pbed.discarded_data =  pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated','discarded', 'pass_agg_r_dist']+[f'pebble_type_{i}' for i in range(len(pebbles_dict))]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names], errors='ignore'))+pass_dependent_names+['discard_step']) # Discarded pebbles data
+pbed.discarded_data = pbed.discarded_data.drop(columns='uni', errors='ignore')
+# pbed.discharged_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{i}' for i in range(len(pebbles_dict))]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names], errors='ignore'))) # Discharged pebbles data
+pbed.discharged_fuel_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{i}' for i in range(len(pebbles_dict))]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names], errors='ignore'))) # Discharged pebbles data, only fuel pebbles
 
-pbed.discharged_fuel_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{i}' for i in range(len(pebbles_dict))]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))) # Discharged pebbles data, only fuel pebbles
-
-# pbed.reinserted_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{i}' for i in range(len(pebbles_dict))]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))) # Re-inserted pebbles data
-pbed.reinserted_fuel_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{i}' for i in range(len(pebbles_dict))]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names]))) # Re-inserted pebbles data, only fuel pebbles
+# pbed.reinserted_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{i}' for i in range(len(pebbles_dict))]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names], errors='ignore'))) # Re-inserted pebbles data
+pbed.reinserted_fuel_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{i}' for i in range(len(pebbles_dict))]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names], errors='ignore'))) # Re-inserted pebbles data, only fuel pebbles
 
 #%% Main loop
 for step in range(first_step, Nsteps):
@@ -517,7 +526,7 @@ for step in range(first_step, Nsteps):
             pbed.cycle_hist.loc[step, var] = step_wise_variables[var][step-1]
             print_with_timestamp(f'\t- {var}: {step_wise_variables[var][step-1]}')
     print()
-    
+
     #### First step, just run domain decomposition and transport if needed ####
     if step == first_step:
         # Transport step. Not mandatory, only if using no-burnup or specifying to solve first transport
@@ -686,7 +695,7 @@ for step in range(first_step, Nsteps):
 
         # Store discarded information
         print_with_timestamp(f'\tStoring {Ndiscarded} discarded pebbles information')
-        pbed.discarded_data = pbed.data.loc[pbed.data['discarded'], pbed.discarded_data.columns.drop('discard_step')].copy() # Copy into discarded data (only non-initial are considered)
+        pbed.discarded_data = pbed.data.loc[pbed.data['discarded'], pbed.discarded_data.columns.drop('discard_step', errors='ignore')].copy() # Copy into discarded data (only non-initial are considered)
         pbed.discarded_data['discard_step'] = step-1 # Add discarded step
 
         # Insert fresh pebbles
@@ -694,8 +703,18 @@ for step in range(first_step, Nsteps):
         if transport:
             for uni_id, (uni_name, uni) in enumerate(threshold_pebbles_dict.items()):
                 material = uni['mat_name']
-                Serpent_set_multiple_values(tra['reset_fuel'][material][pbed.data.loc[pbed.data[f"pebble_type_{uni_id}"], "discarded"]], np.ones(Ndiscarded).astype(int)) # Reset fuel composition for discarded pebbles (=>fresh)
-                Serpent_set_multiple_values(tra['burnup_in'][material][pbed.data.loc[pbed.data[f"pebble_type_{uni_id}"], "discarded"]], np.zeros(Ndiscarded)) # Reset burnup for discarded pebbles to 0
+                # Serpent_set_multiple_values(tra['reset_fuel'][material][pbed.data.loc[pbed.data[f"pebble_type_{uni_id}"], "discarded"]], np.ones(Ndiscarded).astype(int)) # Reset fuel composition for discarded pebbles (=>fresh)
+                # Serpent_set_multiple_values(tra['burnup_in'][material][pbed.data.loc[pbed.data[f"pebble_type_{uni_id}"], "discarded"]], np.zeros(Ndiscarded)) # Reset burnup for discarded pebbles to 0
+                discarded = pbed.data.loc[pbed.data[f'pebble_type_{i}'], "discarded"].values
+
+                burnup_vec = pbed.data.loc[pbed.data[f'pebble_type_{i}'], "burnup"].values
+                burnup_vec[discarded] = 0.0
+
+                reset_vec = np.zeros(len(discarded))
+                reset_vec[discarded] = 1
+
+                Serpent_set_values(tra['reset_fuel'][getdict(active_pebbles_dict, 'mat_name')[i]], reset_vec.astype(int))
+                Serpent_set_values(tra['burnup_in'][getdict(active_pebbles_dict, 'mat_name')[i]], burnup_vec.astype(float))
 
             # Reset integrated tallies to 0
             for name in detector_names:
@@ -711,7 +730,7 @@ for step in range(first_step, Nsteps):
         print_with_timestamp(f'\tStoring {Nrecirculated} reinserted pebbles information')
         # pbed.reinserted_data = pbed.data.loc[pbed.data['recirculated'], pbed.reinserted_data.columns].copy()
         pbed.reinserted_fuel_data = pbed.data.loc[(pbed.data['isactive']) & (pbed.data['recirculated']), pbed.reinserted_fuel_data.columns].copy()
-        
+
         for name in inventory_names:
             for uni_id, (uni_name, uni) in enumerate(threshold_pebbles_dict.items()):
                 id_nuc = nuclides_list[uni['mat_name']].index(int(name))
@@ -719,11 +738,14 @@ for step in range(first_step, Nsteps):
                 if discarded.sum() > 0:
                     pbed.reinserted_fuel_data.loc[discarded, name] = fresh_fuel[uni['mat_name']][id_nuc]
 
-        # Reset pass-dependent variables for recirculated data
+        # Reset pass-dependent variables for recirculated data and set old data to 0 for discarded pebbles
         for name in pass_dependent_names:
             pbed.data.loc[pbed.data['recirculated'], name] = 0.0
             if 'power' in name or 'burnup' in name:
                 pbed.data.loc[(pbed.data['recirculated']) & (~pbed.data['isactive']), name] = np.nan
+        for field in ['fima', 'burnup']:
+            if field in extra_fields:
+                pbed.old_data[field] = 0
 
         curr_time = float(next_time) # Increment time
         pbed.data['pass_nsteps'] += 1
@@ -753,7 +775,7 @@ for step in range(first_step, Nsteps):
 
     if transport:
         # Extract field and calculate pass quantity
-        print_with_timestamp('\t\tExtracting extra fields:', extra_fields)
+        print_with_timestamp('\t\tExtracting extra fields:' + ', '.join(extra_fields), )
         for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
             material = uni['mat_name']
             for field in ['fima', 'decayheat', 'activity', 'burnup']:
@@ -768,14 +790,14 @@ for step in range(first_step, Nsteps):
                     pbed.data.loc[(pbed.data['isactive'] & (pbed.data['recirculated'])), f'pass_{field}'] = pbed.data.loc[(pbed.data['isactive'] & (pbed.data['recirculated'])), field] - pbed.old_data.loc[(pbed.data['isactive'] & (pbed.data['recirculated'])), field]
 
         # Extract isotopic inventory
-        print_with_timestamp('\t\tExtracting inventory:', extra_fields)
+        print_with_timestamp('\t\tExtracting inventory:' + ', '.join(inventory_names))
         for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
             material = uni['mat_name']
             for name in inventory_names:
                 pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], name] = Serpent_get_values(tra[name][material])
 
         # Extract detector values and uncertainties and calculate integrated values
-        print_with_timestamp('\t\tExtracting detector fields:', extra_fields)
+        print_with_timestamp('\t\tExtracting detector fields:' + ', '.join(detector_names))
         for name in list(detector_names):
             # Tallies
             pbed.data[name] = Serpent_get_values(tra[name])
@@ -814,11 +836,11 @@ for step in range(first_step, Nsteps):
         detectors_fields = list(np.array([[name, f'{name}_rel_unc', f'integrated_{name}', f'pass_integrated_{name}'] for name in detector_names]).flatten())
         cumulative_fields = ['residence_time', 'passes', 'avg_r_dist'] + [f'integrated_{name}' for name in detector_names]
         pass_fields = ['pass_residence_time', 'pass_agg_r_dist', 'pass_avg_r_dist'] + [f'pass_integrated_{name}' for name in detector_names]
-        for field in ['burnup', 'fima']: 
+        for field in ['burnup', 'fima']:
             if field in extra_fields:
                 cumulative_fields.append(field)
                 pass_fields.append(f'pass_{field}')
-        for field in ['decayheat', 'activity']: 
+        for field in ['decayheat', 'activity']:
             if field in extra_fields:
                 detectors_fields.append(field)
 
