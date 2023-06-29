@@ -704,14 +704,10 @@ for step in range(first_step, Nsteps):
                 # Serpent_set_multiple_values(tra['reset_fuel'][material][pbed.data.loc[pbed.data[f"pebble_type_{uni_id}"], "discarded"]], np.ones(Ndiscarded).astype(int)) # Reset fuel composition for discarded pebbles (=>fresh)
                 # Serpent_set_multiple_values(tra['burnup_in'][material][pbed.data.loc[pbed.data[f"pebble_type_{uni_id}"], "discarded"]], np.zeros(Ndiscarded)) # Reset burnup for discarded pebbles to 0
                 discarded = pbed.data.loc[pbed.data[f'pebble_type_{i}'], "discarded"].values
-
                 burnup_vec = pbed.data.loc[pbed.data[f'pebble_type_{i}'], "burnup"].values
                 burnup_vec[discarded] = 0.0
 
-                reset_vec = np.zeros(len(discarded))
-                reset_vec[discarded] = 1
-
-                Serpent_set_values(tra['reset_fuel'][getdict(active_pebbles_dict, 'mat_name')[i]], reset_vec.astype(int))
+                Serpent_set_values(tra['reset_fuel'][getdict(active_pebbles_dict, 'mat_name')[i]], discarded.astype(int))
                 Serpent_set_values(tra['burnup_in'][getdict(active_pebbles_dict, 'mat_name')[i]], burnup_vec.astype(float))
 
             # Reset integrated tallies to 0
