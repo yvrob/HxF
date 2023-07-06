@@ -7,10 +7,8 @@ include burnup
 set depout 2 2
 set Cerberus_verbosity 0
 set ures 1
-set power 280000000.0
+set power 280e6
 set pop 20000 100 10
-set pcc 0 % NS@KP this needs to be examined for TR
-set bumode 2 16
 
 % Performance/memory
 set opti 1

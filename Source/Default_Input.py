@@ -16,6 +16,13 @@ use_decnfy_lib = True
 #%% Outputing
 verbosity_mode = 0
 plotting = True
+plot_geom = True
+plot_base = True
+plot_detectors = True
+plot_inventory = True
+plot_keff = True
+plot_cumulative = True
+plot_pass = True
 saving = True
 write_global = True
 write_incore = True

@@ -1,6 +1,6 @@
 dep butot 10.8
 
 set his 1
-set inventory 922350 922360 922380 942390 942380 942400 942410 942420 952410 952421 551370 541350 531310 380900
 div fuel peb u_pb 1 u_fuel_pebble
-set pcc 0
+set pcc 0 % NS@KP this needs to be examined for TR
+%set bumode 2 16

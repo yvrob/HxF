@@ -1,7 +1,7 @@
 set bc 1
 %%---plotting geometry
-plot 1 1615 2000
-plot 3 2000 2000 226.0
+%plot 1 1615 2000
+%plot 3 2000 2000 226.0
 
 
 %%---surf for core
