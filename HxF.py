@@ -632,23 +632,25 @@ for step in range(first_step, Nsteps):
         pbed.cycle_hist.loc[step, ['recirculated', 'discarded']] = [Nrecirculated, Ndiscarded]
 
         # Before anything, decay pebbles which were recirculated (if decay step>0)
-        if transport and decay_step > 0:
+        if transport and (decay_step > 0 or write_restart_discharged):
             print_with_timestamp(f'\tDecaying recirculated pebbles for {decay_step} days')
 
             # Switch from depletion mode to decay mode (no fission/absorption, just decay)
-            Serpent_set_values(tra['switch_mode'], DECAY)
+            if decay_step > 0:
+                Serpent_set_values(tra['switch_mode'], DECAY)
 
             # Pebbles which are not recirculated should not decay, make them "non-burnable"
             for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
                 not_decaying = ~pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], "recirculated"].values # select non-recirculated pebbles
                 # Serpent_set_multiple_values(tra['burnable_fuel'][getdict(active_pebbles_dict, 'mat_name')[uni_id]][not_decaying], np.zeros(not_decaying.sum(), dtype=int)) # make them non-burnable
-                burnable_vec = np.zeros(len(not_decaying))
-                burnable_vec[not_decaying] = 1
+                burnable_vec = np.ones(len(not_decaying))
+                burnable_vec[not_decaying] = 0
                 Serpent_set_values(tra['burnable_fuel'][getdict(active_pebbles_dict, 'mat_name')[uni_id]], burnable_vec.astype(int))
             Serpent_get_values(tra['wait'])
 
             # Decay burnable pebbles
-            serpent.advance_to_time(curr_time + decay_step*DAYS)
+            if decay_step > 0:
+                serpent.advance_to_time(curr_time + decay_step*DAYS)
 
             # Save materials in restart file if needed
             if write_restart_discharged and step%restart_discharged_write_every==0:
@@ -662,9 +664,10 @@ for step in range(first_step, Nsteps):
                 burnable_vec = np.ones(len(not_decaying))
                 Serpent_set_values(tra['burnable_fuel'][getdict(active_pebbles_dict, 'mat_name')[uni_id]], burnable_vec.astype(int))
             Serpent_get_values(tra['wait'])
-
-            Serpent_set_values(tra['switch_mode'], DEPLETION) # back to depletion mode
-            Serpent_set_values(tra['time_in'], curr_time) # we artificially applied decay for a given time, but time should not change: come back to time before decay
+            
+            if decay_step > 0:
+                Serpent_set_values(tra['switch_mode'], DEPLETION) # back to depletion mode
+                Serpent_set_values(tra['time_in'], curr_time) # we artificially applied decay for a given time, but time should not change: come back to time before decay
 
 
         # Save discarded materials in restart file if needed
@@ -674,8 +677,8 @@ for step in range(first_step, Nsteps):
             for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
                 not_discarded = ~pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], "discarded"].values # select non-recirculated pebbles
                 # Serpent_set_multiple_values(tra['burnable_fuel'][getdict(active_pebbles_dict, 'mat_name')[uni_id]][not_discarded], np.zeros(not_discarded.sum(), dtype=int)) # make them non-burnable
-                burnable_vec = np.zeros(len(not_discarded))
-                burnable_vec[not_discarded] = 1
+                burnable_vec = np.ones(len(not_discarded))
+                burnable_vec[not_discarded] = 0
                 Serpent_set_values(tra['burnable_fuel'][getdict(active_pebbles_dict, 'mat_name')[uni_id]], burnable_vec.astype(int))
                 Serpent_get_values(tra['wait'])
 
@@ -706,8 +709,6 @@ for step in range(first_step, Nsteps):
         if transport:
             for uni_id, (uni_name, uni) in enumerate(threshold_pebbles_dict.items()):
                 material = uni['mat_name']
-                # Serpent_set_multiple_values(tra['reset_fuel'][material][pbed.data.loc[pbed.data[f"pebble_type_{uni_id}"], "discarded"]], np.ones(Ndiscarded).astype(int)) # Reset fuel composition for discarded pebbles (=>fresh)
-                # Serpent_set_multiple_values(tra['burnup_in'][material][pbed.data.loc[pbed.data[f"pebble_type_{uni_id}"], "discarded"]], np.zeros(Ndiscarded)) # Reset burnup for discarded pebbles to 0
                 discarded = pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], "discarded"].values
                 burnup_vec = pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], "burnup"].values
                 burnup_vec[discarded] = 0.0
