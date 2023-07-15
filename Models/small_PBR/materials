@@ -1,0 +1,41 @@
+mat	fuel	-1.040000E+01	tmp	959	burn	1	vol	5195.126321654473	rgb	255 0 0	% adens = 8.939584E+22
+92235.09c	-7.890377E+00
+92238.09c	-8.767086E-01
+8016.09c	-1.187185E+00
+6000.09c	-4.457292E-01
+
+mat	FLiBe	-1.970000E+00	rgb	127 255 212	% adens = 8.385219E+22
+3007.06c	-2.791093E-01	% adens = 2.395717E+22
+3006.06c	-5.982462E-06	% adens = 5.989442E+17
+4009.06c	-1.792650E-01	% adens = 1.197888E+22
+9019.06c	-1.511620E+00	% adens = 4.791554E+22
+
+mat	graphite	-1.800000E+00	moder	others_therm	6000	rgb	253 218 236	% adens = 9.025239E+22
+6000.06c	-1.800000E+00	% adens = 9.025239E+22
+
+mat	shell	-1.750000E+00	tmp	959	moder	triso_therm	6000	rgb	229 216 189	% adens = 8.774538E+22
+6000.09c	-1.750000E+00	% adens = 8.774538E+22
+
+mat	central_graph	-1.750000E+00	tmp	959	moder	triso_therm	6000	rgb	255 255 204	% adens = 8.774538E+22
+6000.09c	-1.750000E+00	% adens = 8.774538E+22
+
+mat	matrix	-1.750000E+00	tmp	959	moder	triso_therm	6000	rgb	254 217 166	% adens = 8.774538E+22
+6000.09c	-1.750000E+00	% adens = 8.774538E+22
+
+mat	buffer	-1.040000E+00	tmp	959	moder	triso_therm	6000	rgb	222 203 228	% adens = 5.214582E+22
+6000.09c	-1.040000E+00	% adens = 5.214582E+22
+
+mat	iPyC	-1.880000E+00	tmp	959	moder	triso_therm	6000	rgb	204 235 197	% adens = 9.426361E+22
+6000.09c	-1.880000E+00	% adens = 9.426361E+22
+
+mat	oPyC	-1.880000E+00	tmp	959	moder	triso_therm	6000	rgb	179 205 227	% adens = 9.426361E+22
+6000.09c	-1.880000E+00	% adens = 9.426361E+22
+
+mat	SiC	-3.150000E+00	tmp	959	moder	triso_therm	6000	rgb	251 180 174	% adens = 9.487830E+22
+6000.09c	-9.461298E-01	% adens = 4.743915E+22
+14028.09c	-2.203870E+00	% adens = 4.743915E+22
+
+therm	triso_therm	959	gre7.18t	gre7.20t
+
+therm	others_therm	gre7.12t
+

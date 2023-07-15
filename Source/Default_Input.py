@@ -43,10 +43,16 @@ nnodes = 1
 
 #%% Restart read/write
 restart_calculation = False
-read_firt_compositions = False
+read_first_compositions = False
 write_restart = False
 restart_write_every = 1
 write_restart_discarded = False
 write_restart_discharged = False
 restart_discharged_write_every = 1
 restart_discarded_write_every = 1
+
+#%% DEM
+DEM_files_prefix = 'step'
+extra_fields = []
+base_reordering = None
+different_positions = False

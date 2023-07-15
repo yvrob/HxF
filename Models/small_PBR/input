@@ -1,0 +1,21 @@
+include materials
+include geometry
+
+set depout 2 2
+set Cerberus_verbosity 0
+set ures 1
+set power 5000000.0
+set pop 1000 100 10
+
+% Performance/memory
+set opti 1
+set gcu -1
+set memfrac 0.99
+set repro 0
+set shbuf 0 0
+set outp 100000
+
+set nbuf 10
+dep butot 10.8
+set pcc 0
+div fuel peb u_pb 1 u_fuel_pebble

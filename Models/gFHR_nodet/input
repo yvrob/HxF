@@ -1,0 +1,19 @@
+include coreMaterials
+include fuel
+include detectors
+include geometry
+include burnup
+
+set depout 2 2
+set Cerberus_verbosity 0
+set ures 1
+set power 280e6
+set pop 20000 250 25
+
+% Performance/memory
+set opti 1
+set gcu -1
+set memfrac 0.99
+set repro 0
+set shbuf 0 0
+set outp 10000000

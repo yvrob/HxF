@@ -16,4 +16,6 @@ set gcu -1
 set memfrac 0.99
 set repro 0
 set shbuf 0 0
-set outp 10000000
+set outp 100000
+
+set nbuf 1000

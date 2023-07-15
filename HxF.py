@@ -1,6 +1,7 @@
 # Known issues:
-# - Restart, first step is completely wrong, but then it works fine (no impact seen)
+# - Restart, first step corresponds to old data after burning, it is correct but the keff will be different than the one before burning (reported in HxF)
 # - Domain decomposition, if uncommented, takes too long to update domains -> changes to Serpent source code to do
+# - If inventory is empty Serpent does not work, if no need for inventory, just add it in the model and not in the Python input
 
 print("""
 ============================================================
@@ -44,6 +45,7 @@ import atexit
 import sys
 from copy import deepcopy
 import inspect
+import math
 np.random.seed(12345)
 
 #%% Read input from file
@@ -68,7 +70,7 @@ try:
 except:
     pass
 
-if 'burnup' not in extra_fields:
+if transport and 'burnup' not in extra_fields:
     extra_fields.append('burnup')
 
 # Solve first and restart are incompatible
@@ -112,11 +114,12 @@ atexit.register(os.chdir, original_path) # Come back to original folder when the
 
 #%% Inventory
 inventory_names  = process_inventory(inventory_names) # translate keywords to isotopes if needed
-if inventory_names:
-    with open(main_input_file, 'a') as f:
+with open(main_input_file, 'a') as f:
+    if inventory_names:
         f.write(f'\nset inventory {" ".join(inventory_names)}\n')
-else:
-    inventory_names = []
+    else:
+        inventory_names = []
+        f.write(f'\nset inventory 922350\n') # just to make Serpent work but does not save inventory in HxF
 
 #%% Domain decomposition
 if domain_decomposition:
@@ -149,7 +152,7 @@ if transport:
             f.write(f'\nset rfr idx 0 "{restart_binary}" {nrestarts}\n')
     else:
         first_step = 0
-        if read_firt_compositions:
+        if read_first_compositions:
             if not os.path.exists(restart_data):
                 raise Exception(f'First composition binary mode selected but no restart data table found at {restart_data}')
             restart_files = glob(restart_binary+'*')
@@ -167,36 +170,45 @@ if not discrete_motion:
     print_with_timestamp(f'Using DEM motion from folder {positions_folder}')
     if not os.path.exists(positions_folder):
         raise Exception(f'DEM motion selected but positions folder {positions_folder} does not exist.')
-    position_files = natural_sort(glob(positions_folder+'/step*.csv')) # List all positions found with DEM
-    if looping:
-        DEM_start, DEM_end, transition, error_rz = looper(position_files, DEM_start, DEM_end, looper_Nr, looper_Nz, looper_method)
-        print_with_timestamp(f'Looper ready: from DEM step {DEM_start} to {DEM_end} (err={error_rz:.2f})')
+    position_files = natural_sort(glob(f'{positions_folder}/{DEM_files_prefix}*.csv')) # List all positions found with DEM
     position_files = position_files[DEM_start:DEM_end+1]
+    if looping:
+        position_files = natural_sort(glob(f'{positions_folder}/{DEM_files_prefix}*.csv'))[DEM_start:DEM_end+1] # List all positions found with DEM
+        transition = looper(position_files[0], position_files[-1], looper_Nr, looper_Nz, looper_method)        
+        np.savetxt('transition.txt', transition, fmt='%i') # Save transition in case we want to reapply it
+    
+    if isinstance(base_reordering, type(None)):
+        base_reordering = range(pd.read_csv(position_files[DEM_start]).shape[0])
 
-    if restart_calculation or read_firt_compositions:
+    if restart_calculation or read_first_compositions:
         data = pd.read_csv(restart_data, index_col=0)
 
         # Just for checking, check that positions in data correspond to the right positions
         nsteps_to_loop = (DEM_end-DEM_start)/DEM_step_increment # won't work if different step increments! after how many steps do we loop
-        if first_step<=nsteps_to_loop: # if first loop (original), no modification
+        if not looping or first_step<=nsteps_to_loop: # if first loop (original), no modification
             nloops = 0
             equivalent_step = first_step
         else: # need to have an equivalent step, and apply transition indices as many times as there were loops
             nloops = int((first_step-1)//nsteps_to_loop)
             equivalent_step = int((first_step-1)%nsteps_to_loop)+1
-        if restart_calculation:
-            print_with_timestamp(f'\tFirst check if restart positions are in agreement with file: {position_files[equivalent_step]} (loop #{nloops}, equivalent step #{equivalent_step})')
-            positions = pd.read_csv(position_files[equivalent_step])[['x','y','z']]*positions_scale + np.array(positions_translation) # read new positions from DEM file
-            # Apply looping transition, if needed
-            indices = np.arange(positions.shape[0], dtype=int)
-            for i in range(nloops): # does not go here if nloops=0
-                indices = indices[transition]
-            positions[['x', 'y', 'z']] = positions.loc[indices][['x', 'y', 'z']].values
-            if ((positions[['x', 'y', 'z']] - data[['x', 'y', 'z']]).abs().max()>1e-8).all():
-                print_with_timestamp((positions[['x', 'y', 'z']] - data[['x', 'y', 'z']]).abs().max())
-                raise Exception('First positions are different from the restart positions, check input data, looped, etc.')
-            else:
-                print_with_timestamp('\t\tOK.')
+
+        print_with_timestamp(f'\tFirst check if restart positions are in agreement with file: {position_files[equivalent_step]} (loop #{nloops}, equivalent step #{equivalent_step})')
+        positions = pd.read_csv(position_files[equivalent_step])[['x','y','z']]*positions_scale + np.array(positions_translation) # read new positions from DEM file
+        # Apply looping transition, if needed
+        indices = np.arange(len(positions))
+        for i in range(nloops): # does not go here if nloops=0
+            indices = indices[transition]
+        indices = indices[base_reordering]
+        positions[['x', 'y', 'z']] = positions.loc[indices][['x', 'y', 'z']].values
+        if restart_calculation and not different_positions and ((positions[['x', 'y', 'z']] - data[['x', 'y', 'z']]).abs().max()>1e-8).all():
+            print_with_timestamp((positions[['x', 'y', 'z']] - data[['x', 'y', 'z']]).abs().max())
+            raise Exception('First positions are different from the restart positions, check input data, looped, etc.')
+        else:
+            data = data.iloc[:positions.shape[0]] # cut to the right size when starting
+            data[['x', 'y', 'z']] = positions[['x', 'y', 'z']]
+            print_with_timestamp('\t\tOK.')
+        if not restart_calculation:
+            data['r'] = r_pebbles # Change radii
     else:
         data = pd.read_csv(position_files[0])[['x','y','z']]*positions_scale + np.array(positions_translation) # read new positions from DEM file
         data['r'] = r_pebbles # Change radii
@@ -207,7 +219,7 @@ if not discrete_motion:
 # Discrete motion: import from pbed file, assign row/column ID and make motion matrix
 else:
     print_with_timestamp(f'Using discrete motion')
-    if restart_calculation or read_firt_compositions:
+    if restart_calculation or read_first_compositions:
         data = pd.read_csv(restart_data, index_col=0)
     else:
         data = pd.read_csv(pbed_file, header=None, names=['x', 'y', 'z', 'r', 'uni'], delim_whitespace=True)
@@ -297,10 +309,13 @@ for uni_id, (uni_name, uni) in enumerate(threshold_pebbles_dict.items()):
     var = f'threshold_{uni["mat_name"]}'
     try: # Add only the ones in the input
         step_wise_variables[var] = uni['threshold']
-        try: # If single value, make list of the same value at every step
-            _ = len(step_wise_variables[var])
-        except:
-            step_wise_variables[var] = [step_wise_variables[var]] * Nsteps
+        if isinstance(uni['threshold'], str) and uni['threshold'] == 'adjustable':
+             step_wise_variables[var] = [0] * Nsteps
+        else:
+            try: # If single value, make list of the same value at every step
+                _ = len(step_wise_variables[var])
+            except:
+                step_wise_variables[var] = [step_wise_variables[var]] * Nsteps
     except:
         step_wise_variables[var] = None
 
@@ -347,9 +362,6 @@ tra = dict()
 tra['plot']          = Serpent_set_values("plot_geometry", 1, serpent, communicate=False) # Can be called to plot latest position/geometry
 tra['write_restart'] = get_transferrable("write_restart", serpent, input_parameter=True) # Can be called to plot latest position/geometry
 tra['xyzr_in']       = get_transferrable(f"pbed_{pbed_universe_name}_xyzr", serpent, input_parameter=True) # Can be called to change pebbles positions
-# tra['burnup_in'] = {mat_name: Serpent_get_material_wise(mat_name, 'burnup', serpent, input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
-# tra['reset_fuel'] = {mat_name: Serpent_get_material_wise(mat_name, 'reset', serpent, prefix='composition', input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
-# tra['burnable_fuel'] = {mat_name: Serpent_get_material_wise(mat_name, 'burnable', serpent, prefix='material', input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
 tra['burnable_fuel'] = {mat_name: get_transferrable(f"material_div_{mat_name}_burnable", serpent, input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
 tra['burnup_in'] = {mat_name: get_transferrable(f"material_div_{mat_name}_burnup", serpent, input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
 tra['reset_fuel'] = {mat_name: get_transferrable(f"material_div_{mat_name}_reset", serpent, input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
@@ -383,7 +395,7 @@ tra['neutrons_per_cycle'] = get_transferrable("neutrons_per_cycle", serpent, inp
 #### Serpent => Python #####
 tra['keff']          = get_transferrable('ANA_KEFF', serpent) # Monitor multiplication factor
 tra['keff_rel_unc']          = get_transferrable('ANA_KEFF_rel_unc', serpent) # Monitor multiplication factor
-tra['wait'] = get_transferrable('ANA_KEFF', serpent) # Just one command to make Python wait for Serpent to finish the rest of the commands
+tra['wait'] = get_transferrable('sss_ov_memsize', serpent) # Just one command to make Python wait for Serpent to finish the rest of the commands
 
 # Monitor extra fields
 for field in ['fima', 'decayheat', 'activity', 'burnup']:
@@ -454,10 +466,19 @@ if restart_calculation:
 else:
     # Initialize fields corresponding to thresholds
     for uni_id, (uni_name, uni) in enumerate(threshold_pebbles_dict.items()):
-        if uni['threshold_type'] == 'passes':
-            pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'passes'] = np.random.randint(1, step_wise_variables[f"threshold_{uni['mat_name']}"][0] + 1, pbed.data[f'pebble_type_{uni_id}'].sum())
+        if isinstance(uni['threshold'], str) and uni['threshold'] == 'adjustable':
+            uni['current_threshold'] = uni['threshold_ini']
+            step_wise_variables[f"threshold_{uni['mat_name']}"][0] = uni['current_threshold']
+            if uni['threshold_type'] == 'passes':
+                pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'passes'] = np.random.randint(1, uni['threshold_ini'] + 1, pbed.data[f'pebble_type_{uni_id}'].sum())
+            else:
+                Serpent_set_values(tra[f"{uni['threshold_type']}_{uni['mat_name']}_in"], np.random.uniform(0, uni['threshold_ini'], pbed.data[f'pebble_type_{uni_id}'].sum()))
+        
         else:
-            Serpent_set_values(tra[f"{uni['threshold_type']}_{uni['mat_name']}_in"], np.random.uniform(0, step_wise_variables[f"threshold_{uni['mat_name']}"][0], pbed.data[f'pebble_type_{uni_id}'].sum()))
+            if uni['threshold_type'] == 'passes':
+                pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'passes'] = np.random.randint(1, step_wise_variables[f"threshold_{uni['mat_name']}"][0] + 1, pbed.data[f'pebble_type_{uni_id}'].sum())
+            else:
+                Serpent_set_values(tra[f"{uni['threshold_type']}_{uni['mat_name']}_in"], np.random.uniform(0, step_wise_variables[f"threshold_{uni['mat_name']}"][0], pbed.data[f'pebble_type_{uni_id}'].sum()))
 
 for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
     fuel_name = uni['mat_name']
@@ -488,6 +509,9 @@ pbed.discharged_fuel_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x
 
 # pbed.reinserted_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{uni_id}' for i in range(len(pebbles_dict))]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names], errors='ignore'))) # Re-inserted pebbles data
 pbed.reinserted_fuel_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{uni_id}' for uni_id in range(len(pebbles_dict))]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names], errors='ignore'))) # Re-inserted pebbles data, only fuel pebbles
+
+print_with_timestamp('Waiting for Serpent...')
+Serpent_get_values(tra['wait'])
 
 #%% Main loop
 for step in range(first_step, Nsteps):
@@ -562,7 +586,7 @@ for step in range(first_step, Nsteps):
         else:
             # Move pebbles (DEM case), loop if necessary
             nsteps_to_loop = (DEM_end-DEM_start)/DEM_step_increment # won't work if different step increments! after how many steps do we loop
-            if step<=nsteps_to_loop: # if first loop (original), no modification
+            if not looping or step<=nsteps_to_loop: # if first loop (original), no modification
                 nloops = 0
                 equivalent_step = step
             else: # need to have an equivalent step, and apply transition indices as many times as there were loops
@@ -574,9 +598,10 @@ for step in range(first_step, Nsteps):
             new_positions = pd.read_csv(position_files[equivalent_step])[['x','y','z']]*positions_scale + np.array(positions_translation) # read new positions from DEM file
 
             # Apply looping transition, if needed
-            indices = np.arange(new_positions.shape[0], dtype=int)
+            indices = np.arange(len(new_positions))
             for i in range(nloops): # does not go here if nloops=0
                 indices = indices[transition]
+            indices = indices[base_reordering]
             new_positions[['x', 'y', 'z']] = new_positions.loc[indices][['x', 'y', 'z']].values
 
         new_positions['r'] = r_pebbles # assign r
@@ -614,7 +639,10 @@ for step in range(first_step, Nsteps):
             threshold_type = uni['threshold_type']
             threshold_dir = uni['threshold_dir']
             var = f'threshold_{uni["mat_name"]}'
-            threshold_val = step_wise_variables[var][step]
+            if isinstance(uni['threshold'], str) and uni['threshold'] == 'adjustable':
+                threshold_val = uni['current_threshold']
+            else:
+                threshold_val = step_wise_variables[var][step-1]
             if threshold_dir > 0:
                 print_with_timestamp(f'\t\t{uni["mat_name"]} criterion: {threshold_type} >= {threshold_val}')
                 to_discard = (pbed.data[f'pebble_type_{uni_id}']) & (pbed.data['recirculated']) & (pbed.data[threshold_type] >= threshold_val) # select recirculated pebbles with the right fuel which satisfy the discard criterion
@@ -651,6 +679,8 @@ for step in range(first_step, Nsteps):
             # Decay burnable pebbles
             if decay_step > 0:
                 serpent.advance_to_time(curr_time + decay_step*DAYS)
+                print_with_timestamp('\tWaiting for Serpent...')
+                Serpent_get_values(tra['wait'])
 
             # Save materials in restart file if needed
             if write_restart_discharged and step%restart_discharged_write_every==0:
@@ -683,7 +713,7 @@ for step in range(first_step, Nsteps):
                 Serpent_get_values(tra['wait'])
 
             # Save materials in restart file
-            print_with_timestamp(f'\tWriting restart file for discharged pebbles for step {step} (added 1000000 to differentiate)')
+            print_with_timestamp(f'\tWriting restart file for discarded pebbles for step {step} (added 1000000 to differentiate)')
             Serpent_set_values(tra['write_restart'], 1000000 + step)
 
             # Come back to normal
@@ -745,7 +775,7 @@ for step in range(first_step, Nsteps):
                 pbed.data.loc[(pbed.data['recirculated']) & (~pbed.data['isactive']), name] = np.nan
         for field in ['fima', 'burnup']:
             if field in extra_fields:
-                pbed.old_data[field] = 0
+                pbed.old_data.loc[pbed.data['discarded'], field] = 0
 
         curr_time = float(next_time) # Increment time
         pbed.data['pass_nsteps'] += 1
@@ -759,16 +789,47 @@ for step in range(first_step, Nsteps):
             serpent.advance_to_time(next_time) # Run Serpent transport + burn to next time (predictor if using predictor/corrector)
             if correct:
                 serpent.correct() # Run corrector step if using (predictor/corrector)
+            print_with_timestamp('\tWaiting for Serpent...')
+            Serpent_get_values(tra['wait'])
             if write_restart and step%restart_write_every==0:
                 print_with_timestamp(f'\tWriting restart file for core for step {step}')
                 Serpent_set_values(tra['write_restart'], step)
 
-            print_with_timestamp('\tWaiting for Serpent...')
             keff = Serpent_get_values(tra['keff'])[0]
             keff_rel_unc = Serpent_get_values(tra['keff_rel_unc'])[0]
             keff_unc = keff*keff_rel_unc
             pbed.cycle_hist.loc[step, ['keff', 'keff_relative_uncertainty', 'keff_absolute_uncertainty']] = [keff, keff_rel_unc, keff_unc]
             print_with_timestamp(f'\tDone. keff = {keff:.5f} +/- {keff_unc*1e5:.0f} pcm')
+
+            # Adjust threshold
+            for uni_id, (uni_name, uni) in enumerate(threshold_pebbles_dict.items()):
+                if isinstance(uni['threshold'], str) and uni['threshold'] == 'adjustable':
+                    diff_ratio = (uni['target_value'] - pbed.cycle_hist[uni['target']].iloc[-1]) / uni['target_value']
+                    if 'search_started' not  in uni:
+                        uni['search_started'] = False
+                    if abs(diff_ratio) < uni['start_search']:
+                        uni['search_started'] = True
+                    if uni['search_started']:
+                        if step%uni['update_every']==0:
+                            print_with_timestamp(f'\tAdjusting threshold for universe: {uni_name}')
+                            print_with_timestamp(f"\t\tCurrent threshold on {uni['threshold_type']}: {uni['current_threshold']:.4E}")
+                            print_with_timestamp(f"\t\tCurrent learning rate: {uni['learning_rate']:.2E} (max change: {uni['max_threshold_delta']})")
+                            print_with_timestamp(f"\t\tCurrent target field value: {uni['target']}={pbed.cycle_hist[uni['target']].iloc[-1]:.5E}")
+                            print_with_timestamp(f"\t\tDifference with target ({uni['target']}={uni['target_value']}): {-diff_ratio*100:.2E}%")
+                            if pbed.cycle_hist[uni['target']].iloc[-1] > uni['target_value']:
+                                threshold_delta = -max(diff_ratio * uni['learning_rate'], -uni['max_threshold_delta'])
+                            else:
+                                threshold_delta = -min(diff_ratio * uni['learning_rate'], uni['max_threshold_delta'])
+
+                            uni['current_threshold'] += threshold_delta # Update the threshold for the next iteration
+                            step_wise_variables[f"threshold_{uni['mat_name']}"][step] = uni['current_threshold'] # update in the cycle info
+                            print_with_timestamp(f"\t\tNew threshold on {uni['threshold_type']}: {uni['current_threshold']:.4E} (diff={threshold_delta:.4E})")
+                            if abs(threshold_delta) != uni['max_threshold_delta']:
+                                uni['learning_rate'] *= uni['decay_rate']  # less and less sensitive with number of steps
+                        else:
+                            print_with_timestamp(f"\tAdjusting threshold in {uni['update_every'] - step%uni['update_every']} steps")
+                    else:
+                        print_with_timestamp(f"\tNot adjusting yet")
 
     #### Monitor quantities ####
     print_with_timestamp('\tExtracting fields, detectors and inventory')
@@ -781,41 +842,47 @@ for step in range(first_step, Nsteps):
             for field in ['fima', 'decayheat', 'activity', 'burnup']:
                 if field in extra_fields:
                     pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], field] = Serpent_get_values(tra[field][material]).astype(float)
+        print_with_timestamp('\t\t\tDone.')
+
 
         if step > 0:
             for field in ['fima', 'burnup']:
                 if field in extra_fields:
-                    # Pass quantity incremented for fuel pebbles, special case for pebbles which recirculated
+                    # Pass quantity incremented for fuel pebbles, special case for pebbles which recirculated and discarded
                     pbed.data.loc[pbed.data['isactive'], f'pass_{field}'] += pbed.data.loc[pbed.data['isactive'], field] - pbed.old_data.loc[pbed.data['isactive'], field]
                     pbed.data.loc[(pbed.data['isactive'] & (pbed.data['recirculated'])), f'pass_{field}'] = pbed.data.loc[(pbed.data['isactive'] & (pbed.data['recirculated'])), field] - pbed.old_data.loc[(pbed.data['isactive'] & (pbed.data['recirculated'])), field]
 
         # Extract isotopic inventory
-        print_with_timestamp('\t\tExtracting inventory:' + ', '.join(inventory_names))
-        for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
-            material = uni['mat_name']
-            for name in inventory_names:
-                pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], name] = Serpent_get_values(tra[name][material])
+        if len(inventory_names)>0:
+            print_with_timestamp('\t\tExtracting inventory:' + ', '.join(inventory_names))
+            for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
+                material = uni['mat_name']
+                for name in inventory_names:
+                    pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], name] = Serpent_get_values(tra[name][material])
+            print_with_timestamp('\t\t\tDone.')
 
         # Extract detector values and uncertainties and calculate integrated values
-        print_with_timestamp('\t\tExtracting detector fields:' + ', '.join(detector_names))
-        for name in list(detector_names):
-            # Tallies
-            pbed.data[name] = Serpent_get_values(tra[name])
-            pbed.data[f'{name}_rel_unc'] =  Serpent_get_values(tra[f'{name}_rel_unc'])
+        if len(detector_names)>0:
+            print_with_timestamp('\t\tExtracting detector fields:' + ', '.join(detector_names))
+            for name in list(detector_names):
+                # Tallies
+                pbed.data[name] = Serpent_get_values(tra[name])
+                pbed.data[f'{name}_rel_unc'] =  Serpent_get_values(tra[f'{name}_rel_unc'])
 
-            # Integrated tallies
-            if step > 0:
-                added = time_step * DAYS * pbed.data[name]
-                added_unc = added * pbed.data[f'{name}_rel_unc']
-                pbed.data[f'integrated_{name}'] += added
-                pbed.data[f'integrated_{name}_unc'] += added_unc
-                pbed.data[f'integrated_{name}_rel_unc'] = pbed.data[f'integrated_{name}_unc']/pbed.data[f'integrated_{name}'] # to modify
-                pbed.data[f'pass_integrated_{name}'] += added
-                pbed.data[f'pass_integrated_{name}_unc'] += added_unc
-                pbed.data[f'pass_integrated_{name}_rel_unc'] = pbed.data[f'pass_integrated_{name}_unc']/pbed.data[f'pass_integrated_{name}']  # to modify
-                if 'power' in name: # Only fuel has power, rest is "nan"
-                    for subname in [name, f'integrated_{name}', f'integrated_{name}_unc', f'integrated_{name}_rel_unc', f'pass_integrated_{name}', f'pass_integrated_{name}_unc', f'pass_integrated_{name}_rel_unc']:
-                        pbed.data.loc[~pbed.data['isactive'], subname] = np.nan
+                # Integrated tallies
+                if step > 0:
+                    added = time_step * DAYS * pbed.data[name]
+                    added_unc = added * pbed.data[f'{name}_rel_unc']
+                    pbed.data[f'integrated_{name}'] += added
+                    pbed.data[f'integrated_{name}_unc'] += added_unc
+                    pbed.data[f'integrated_{name}_rel_unc'] = pbed.data[f'integrated_{name}_unc']/pbed.data[f'integrated_{name}'] # to modify
+                    pbed.data[f'pass_integrated_{name}'] += added
+                    pbed.data[f'pass_integrated_{name}_unc'] += added_unc
+                    pbed.data[f'pass_integrated_{name}_rel_unc'] = pbed.data[f'pass_integrated_{name}_unc']/pbed.data[f'pass_integrated_{name}']  # to modify
+                    if 'power' in name: # Only fuel has power, rest is "nan"
+                        for subname in [name, f'integrated_{name}', f'integrated_{name}_unc', f'integrated_{name}_rel_unc', f'pass_integrated_{name}', f'pass_integrated_{name}_unc', f'pass_integrated_{name}_rel_unc']:
+                            pbed.data.loc[~pbed.data['isactive'], subname] = np.nan
+            print_with_timestamp('\t\t\tDone.')
 
     # Calculate new average distance
     pbed.data['avg_r_dist'] = (pbed.data['avg_r_dist']*(step-pbed.data['insertion_step'])+pbed.data['r_dist'])/(step-pbed.data['insertion_step']+1)
@@ -835,7 +902,9 @@ for step in range(first_step, Nsteps):
         if domain_decomposition:
             base_fields.append('domain_id')
         detectors_fields = list(np.array([[name, f'{name}_rel_unc', f'integrated_{name}', f'pass_integrated_{name}'] for name in detector_names]).flatten())
-        cumulative_fields = ['residence_time', 'passes', 'avg_r_dist'] + [f'integrated_{name}' for name in detector_names]
+        cumulative_fields = ['residence_time', 'passes', 'avg_r_dist'] 
+        if transport:
+            cumulative_fields += [f'integrated_{name}' for name in detector_names]
         pass_fields = ['pass_residence_time', 'pass_agg_r_dist', 'pass_avg_r_dist'] + [f'pass_integrated_{name}' for name in detector_names]
         for field in ['burnup', 'fima']:
             if field in extra_fields:
@@ -852,9 +921,9 @@ for step in range(first_step, Nsteps):
             plot_core_fields(pbed.data, cumulative_fields, num_cols=4, savefig=f'Plots/cumulative_{step}.png'); plt.show()
         if plot_pass:
             plot_core_fields(pbed.data, pass_fields, num_cols=4, savefig=f'Plots/pass_{step}.png'); plt.show()
-        if plot_detectors and len(detectors_fields) > 0:
+        if plot_detectors  and transport and len(detectors_fields) > 0:
             plot_core_fields(pbed.data, detectors_fields, num_cols=4, savefig=f'Plots/detectors_{step}.png'); plt.show()
-        if plot_inventory and len(inventory_names) > 0 and len(inventory_names) <= 20:
+        if plot_inventory and transport and len(inventory_names) > 0 and len(inventory_names) <= 20:
             plot_core_fields(pbed.data, inventory_names[:min(len(inventory_names), 20)], num_cols=5, savefig=f'Plots/inventory_{step}.png'); plt.show()
 
         # Plot keff

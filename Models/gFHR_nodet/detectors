@@ -1,0 +1,5 @@
+%det flux_pebbles_thermal dl u_pb de Ethermal dv 33.5103216383
+%det flux_pebbles_fast    dl u_pb de Efast dv 33.5103216383
+%det power_pebbles dl u_pb dr -8 void
+%ene Ethermal 1 1E-11 1.86E-6
+%ene Efast 1 0.1 20

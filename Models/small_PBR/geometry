@@ -1,0 +1,36 @@
+%%---plotting geometry
+plot 1 1000 2000
+
+%%---surf for core vessel
+surf infinite inf
+surf core_surf_out cylz 0 0 30 30 150
+surf core_surf_in  cylz 0 0 0 30 150
+
+%%---graphite reflector surfaces
+surf vessel_surf_out cyl 0.0 0.0 60 0 180 % outer reflector surface
+%%---core vessel cells
+cell reflector_cell 0 graphite core_surf_out -vessel_surf_out
+cell out_cell 0 outside vessel_surf_out
+%%---surf for fuel pebbles
+surf graphite_mat sph 0 0 0 1.38 % graphite matrix maximum radius
+
+%---cells for fuel pebbles
+cell c_pebble_matrix u_fuel_pebble fill trisos -graphite_mat
+cell c_pebble_shell u_fuel_pebble shell graphite_mat
+
+%%---pebble bed
+pbed u_pb u_coolant "fpb_pos"
+cell c_pb 0 fill u_pb  -core_surf_out
+cell c_coolant u_coolant FLiBe -infinite
+
+%---triso particles
+particle triso_particle
+fuel	0.02125
+buffer	0.03125
+iPyC	0.03525
+SiC	0.03875
+oPyC	0.04275
+matrix
+
+cell inf u_matrix matrix -infinite
+pbed trisos u_matrix "trisos_20000.inp"
