@@ -35,6 +35,7 @@ from Source.Pebble_Bed import *
 from Source.new_pbed_processing import *
 from Source.Utilities import *
 from Source.Looping import *
+from Source.OpenFOAM import *
 
 import pandas as pd
 import os
@@ -46,6 +47,8 @@ import sys
 from copy import deepcopy
 import inspect
 import math
+from scipy.spatial import cKDTree
+
 np.random.seed(12345)
 
 #%% Read input from file
@@ -284,6 +287,12 @@ if not use_decnfy_lib: # remove link to decay/nfy library if not needed
     print_with_timestamp('Not using decay/nfylibraries')
     os.environ.pop('SERPENT_DECLIB', None)
     os.environ.pop('SERPENT_NFYLIB', None)
+
+if thermal_coupling:
+    TH_iteration = 0
+    TH_step = 0
+    os.system(f'ln -sfn ./OF/constant ./wrk_Serpent/constant')
+    os.system(f'ln -sfn ./OF/{TH_step} ./wrk_Serpent/ifc')
 
 serpent, serpent_input_files = start_Serpent(os.environ["SERPENT_EXE"], ncores, main_input_file, nnodes, verbosity_mode)
 nplots = count_plots(serpent_input_files) # count number of plot commands in input files
@@ -785,6 +794,60 @@ for step in range(first_step, Nsteps):
 
         # Run Serpent for transport and depletion
         if transport:
+            if thermal_coupling:
+                print_with_timestamp(f'\tStarting thermal loop  #{TH_iteration+1}')
+                TH_substep = 0
+                running_thermal = True
+                while running_thermal:
+                    print_with_timestamp(f'\t\tSubstep #{TH_substep+1} (TH time = {TH_step}):')
+                    print_with_timestamp(f'\t\t - Running transport...')
+                    os.system(f'ln -sfn ../OF/{TH_step} ifc')
+                    serpent.solve()
+                    keff = Serpent_get_values(tra['keff'])[0]
+                    keff_rel_unc = Serpent_get_values(tra['keff_rel_unc'])[0]
+                    keff_unc = keff*keff_rel_unc
+                    TH['fields_values'] = {'keff':keff}
+                    print_with_timestamp(f'\t\t\tDone. keff = {keff:.5f} +/- {keff_unc*1e5:.0f} pcm')
+                    print_with_timestamp(f'\t\t - Running thermal-hydraulics...')
+                    execute_GeN_Foam(TH_step, TH_iteration, TH_substep, TH)
+                    if TH_step == 0:
+                        TH['cells_centers'] = read_GeN_Foam('C', TH_step, './OF') * TH['positions_scale']
+                    TH_substep += 1
+                    TH_step += TH['step_size']
+                    points_to_cell_num = cKDTree(TH['cells_centers']).query(pbed.data[['x','y','z']])[1]
+
+                    for field in TH['fields_of_interest']:
+                        TH['fields_values'][field] = read_GeN_Foam(field, TH_step, './OF', 'fluidRegion')
+                        pbed.data[field] = TH['fields_values'][field][points_to_cell_num]
+                        print_with_timestamp(f"\t\t\t{field} (avg +/- std / min, max) = {TH['fields_values'][field].mean():.5E} +/- {TH['fields_values'][field].std():.5E} / {TH['fields_values'][field].min():.5E}, {TH['fields_values'][field].max():.5E}")
+                    print_with_timestamp(f'\t\t\tDone.')
+
+                    if 'max_steps' in TH and TH_substep >= TH['max_steps']:
+                        print_with_timestamp('\t\tMaximum iterations reached.')
+                        running_thermal = False
+                    elif 'convergence_criteria' in TH and 'old_fields_values' in TH:
+                        print(TH['old_fields_values'])
+                        print(TH['fields_values'])
+                        converged = True
+                        print_with_timestamp('\t\tConvergence test:')
+                        for field in TH['convergence_criteria']:
+                            if field=='keff':
+                                rel_dif = np.abs(TH['fields_values'][field]-TH['old_fields_values'][field])/TH['old_fields_values'][field]
+                            else:
+                                rel_dif = np.nanmean(np.abs(TH['fields_values'][field]-TH['old_fields_values'][field])/TH['old_fields_values'][field])
+                            print_with_timestamp(f"\t\t - {field}: {TH['fields_values'][field].mean():.5E} (previous: {TH['old_fields_values'][field].mean():.5E})")
+                            print_with_timestamp(f"\t\t\t Relative difference: {rel_dif*100:.2E}%")
+                            if rel_dif <= TH['convergence_criteria'][field]:
+                                print_with_timestamp(f"\t\t\t Satisfied.")
+                            else:
+                                converged = False
+                                print_with_timestamp(f"\t\t\t Not satisfied.")
+                        if converged:
+                            running_thermal = False
+                    TH['old_fields_values'] = TH['fields_values'].copy()
+                TH_iteration += 1
+            print_with_timestamp('\tEnd of thermal coupling')
+
             print_with_timestamp('\tSending Serpent signal to run transport')
             serpent.advance_to_time(next_time) # Run Serpent transport + burn to next time (predictor if using predictor/corrector)
             if correct:

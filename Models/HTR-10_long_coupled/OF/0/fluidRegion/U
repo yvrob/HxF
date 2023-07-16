@@ -1,0 +1,37 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.2.1                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volVectorField;
+    location    "0";
+    object      U;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [ 0 1 -1 0 0 0 0 ];
+
+internalField   uniform (0 0 -1.5377); // mflow/rho/A=4.32/(2.76*pi*0.9**2*1.0251) density taken form Novak Thesis at 523K
+
+boundaryField
+{
+    Wall
+    {
+        type            slip;
+    }
+    Outlet
+    {
+        type            zeroGradient;
+    }
+    Inlet
+    {
+        type            fixedValue;
+        value           uniform (0 0 -1.5377);
+    }
+}

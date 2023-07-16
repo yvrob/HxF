@@ -1,0 +1,332 @@
+%%%%%%%%%%% Simulation parameters %%%%%%%%%%%
+set Cerberus_verbosity 0
+set depout 2 2
+
+
+%%%%%%%%%%% Coupling Simulation parameters %%%%%%%%%%%
+ifc "OF/ifc_files/fuel.ifc"
+ifc "OF/ifc_files/He.ifc"
+ifc "OF/ifc_files/peb_graph.ifc"
+ifc "OF/ifc_files/peb_shell.ifc"
+ifc "OF/ifc_files/buffer.ifc"
+ifc "OF/ifc_files/PyC.ifc"
+ifc "OF/ifc_files/SiC.ifc"
+
+
+% Transport calculation
+set pop 1000 100 20
+set ures 1
+
+% Burnup calculation
+set pcc 0
+set power 1e7
+dep butot 10.8
+div fuel peb u_pb 1 u_fuel_pebble % to use if using version 2.2.0
+%div fuel sep 4 % to use if using version <2.2.0
+set bumode 2 16
+set inventory 922350 922380 942390 942410 541350 551370
+
+% Detectors
+det flux_pebbles_thermal dl u_pb de Ethermal dv 113.09733552923254
+det flux_pebbles_fast    dl u_pb de Efast dv 113.09733552923254
+det power_pebbles dl u_pb dr -8 void
+ene Ethermal 1 1E-11 1.86E-6
+ene Efast 1 0.1 20
+
+% Performance/memory
+set opti 1
+set gcu -1
+set memfrac 0.99
+set repro 0
+set shbuf 0 0
+set outp 10000000
+
+% Plotting
+plot 1 2000 3210
+%mesh 1 2000 3210 
+
+%plot 3 1000 1000 -610
+%plot 3 1000 1000 -540
+%plot 3 1000 1000 -510
+%plot 3 1000 1000 -450
+%plot 3 1000 1000 -388.764
+%plot 3 1000 1000 -130
+%plot 3 1000 1000 -105
+%plot 3 1000 1000 -40
+%plot 3 1000 1000 0
+
+
+% Black boundary condition
+set bc 1
+
+
+%%%%%%%%%%% Automatically generated surfaces and cells (cones and cylinders, without borings) %%%%%%%%%%%
+surf p_1  pz -610
+surf p_2  pz -540
+surf p_3  pz -510
+surf p_4  pz -450
+surf p_5  pz -388.764
+surf p_6 pz -351.818
+surf p_7  pz -120
+surf p_8  pz -95
+surf p_9 pz -85
+surf p_10  pz -30
+surf p_11  pz 10
+
+surf s_1 cylz 0 0 25 % cells: c_1 c_2 c_3 c_4 c_9 c_10
+surf s_2 cylz 0 0 90 % cells: c_2 c_3 c_4 c_5 c_6 c_7 c_8
+surf s_3 cone 0 0 -351.818 90 -51.156 % cells: c_3 c_4 c_11
+surf s_4 cylz 0 0 95.6 % cells: c_9 c_10 c_11 c_12
+surf s_5 cylz 0 0 108.6 % cells: c_13 c_14 c_15 c_16
+surf s_6 cylz 0 0 140.6 % cells: c_13 c_14 c_15 c_16
+surf s_7 cylz 0 0 148.6 % cells: c_17 c_18 c_19 c_20
+surf s_8 cylz 0 0 167.793 % cells: c_17 c_18 c_19 c_20 c_21
+surf s_9 cylz 0 0 190 % cells: c_21
+
+cell c_1  geom He -s_1 p_1 -p_6
+cell c_2  geom bottom_refl s_1 -s_2 p_3 -p_5
+cell c_3  geom He s_1 -s_2 -s_3 p_5 -p_6
+cell c_4  geom bottom_refl_hot_cool s_1 -s_2  s_3 p_5 -p_6
+cell c_5  geom He -s_2 p_6 -p_7
+cell c_6  geom top_refl -s_2 p_7 -p_8
+cell c_7  geom cold_He -s_2 p_8 -p_9
+cell c_8  geom top_refl -s_2 p_9 -p_10
+cell c_9  geom C_bricks s_1 -s_4 p_1 -p_2
+cell c_10 geom boronated_C_bricks s_1 -s_4 p_2 -p_3
+cell c_11 geom graph_refl s_2 -s_4 p_3 -p_10
+cell c_12 geom boronated_C_bricks -s_4 p_10 -p_11
+cell c_13 geom C_bricks s_5 -s_6 p_1 -p_2
+cell c_14 geom boronated_C_bricks s_5 -s_6 p_2 -p_3
+cell c_15 geom graph_refl s_5 -s_6 p_3 -p_10
+cell c_16 geom boronated_C_bricks s_5 -s_6 p_10 -p_11
+cell c_17 geom C_bricks s_7 -s_8 p_1 -p_2
+cell c_18 geom boronated_C_bricks s_7 -s_8 p_2 -p_3
+cell c_19 geom graph_refl s_7 -s_8  p_3 -p_10
+cell c_20 geom boronated_C_bricks s_7 -s_8 p_10 -p_11
+cell c_21 geom boronated_C_bricks s_8 -s_9 p_1 -p_11
+
+
+%%%%%%% Materials form the coupled model, to adapt temp card 
+
+mat	He	-0.004855559428244974	rgb	230 230 230  tft 500 1100	% adens = 4.062301E+21
+2004.03c	-0.004855559428244974	% adens = 4.062301E+21
+
+% Material cold_He cells: c_7
+mat	cold_He	-0.004855559428244974	rgb	141 133 182 tmp 523  % adens = 4.062301E+21
+2004.03c	-0.004855559428244974	% adens = 4.062301E+21
+
+% Material bottom_refl cells: c_2
+mat	bottom_refl	-1.760000E+00 tmp 600 moder  grph 6000	rgb	79 75 74	% adens = 8.824682E+22
+6000.03c	-1.759992E+00	% adens = 8.824640E+22
+5010.03c	-1.394480E-06	% adens = 8.386907E+16
+5011.03c	-6.269518E-06	% adens = 3.429455E+17
+
+% Material bottom_refl_hot_cool cells: c_4
+mat	bottom_refl_hot_cool	sum	tmp 600 moder  grph 6000	rgb	109 98 158	% adens = 8.824683E+22
+6000.03c	0.851047E-01	
+5010.03c	8.978596E-08	
+5011.03c	3.671400E-07
+
+% Material top_refl cells: c_6 c_8
+mat	top_refl	-1.760000E+00 tmp 600 moder  grph 6000	rgb	149 149 149	% adens = 8.824682E+22
+6000.03c	-1.759992E+00	% adens = 8.824640E+22
+5010.03c	-1.394480E-06	% adens = 8.386907E+16
+5011.03c	-6.269518E-06	% adens = 3.429455E+17
+
+% Material C_bricks cells: c_9 c_13 c_17
+mat	C_bricks	-1.590000E+00	tmp 600 moder  grph 6000	rgb	196 192 103	% adens = 8.824678E+22
+6000.03c	1
+
+
+% Material boronated_C_bricks cells: c_10 c_12 c_14 c_16 c_18 c_20 c_21
+mat	boronated_C_bricks	-1.590000E+00 tmp 600 moder  grph 6000	rgb	255 250 156	% adens = 7.972298E+22
+6000.03c	-1.589993E+00	% adens = 7.972260E+22
+5010.03c	-1.259786E-06	% adens = 7.576808E+16
+5011.03c	-5.663939E-06	% adens = 3.098201E+17
+
+
+% Material graph_refl cells: c_11 c_15 c_19
+mat	graph_refl	-1.760000E+00	tmp 600 moder  grph 6000 rgb	149 129 104	% adens = 8.824682E+22
+6000.03c	-1.759992E+00	% adens = 8.824640E+22
+5010.03c	-1.394480E-06	% adens = 8.386907E+16
+5011.03c	-6.269518E-06	% adens = 3.429455E+17
+
+% Material fuel
+mat	fuel	-1.040000E+01	burn	1	vol	7399.03846153846  tft 600 1300	rgb	204 51 51	% adens = 6.971215E+22
+92235.03c	-1.558156E+00	% adens = 3.992204E+21
+92238.03c	-7.607466E+00	% adens = 1.924515E+22
+8016.03c	-1.234377E+00	% adens = 4.647471E+22
+5010.03c	-3.036825E-07	% adens = 1.826456E+16
+5011.03c	-1.365342E-06	% adens = 7.468486E+16
+
+% Material peb_graph
+mat	peb_graph	-1.730000E+00 moder grph_tms 6000 tft 600 1300	vol	999874.7233104544 	rgb	51 51 51	% adens = 8.674259E+22
+6000.03c	-1.729998E+00	% adens = 8.674247E+22
+5010.03c	-3.684243E-07	% adens = 2.215836E+16
+5011.03c	-1.656418E-06	% adens = 9.060685E+16
+
+% Material peb_shell
+mat	peb_shell	-1.730000E+00 moder	grph_tms 6000 tft 600 1300	vol	3053562.6094423286 	rgb	135 67 120	% adens = 8.674259E+22
+6000.03c	-1.729998E+00	% adens = 8.674247E+22
+5010.03c	-3.684243E-07	% adens = 2.215836E+16
+5011.03c	-1.656418E-06	% adens = 9.060685E+16
+
+% Material buffer
+mat	buffer	-1.100000E+00 moder	grph_tms 6000 tft 600 1300	rgb	51 51 51	% adens = 5.515424E+22
+6000.03c	-1.100000E+00	% adens = 5.515424E+22
+
+% Material PyC
+mat	PyC	-1.900000E+00	moder grph_tms 6000 tft 600 1300	rgb	51 51 51 	% adens = 9.526641E+22
+6000.03c	-1.900000E+00	% adens = 9.526641E+22
+
+% Material SiC
+mat	SiC	-3.180000E+00 moder grph_tms 6000 tft 600 1300	rgb	51 51 51 	% adens = 9.578191E+22
+6000.03c	-9.551405E-01	% adens = 4.789095E+22
+14028.03c	-2.224859E+00	% adens = 4.789095E+22
+
+therm grph_tms 0 gre6.08t gre6.12t gre6.16t gre6.18t gre6.20t gre6.22t gre6.24t gre6.26t
+therm grph 600 gre6.12t gre6.20t
+
+%%%%%%%%%%% Pebble bed definition %%%%%%%%%%%
+
+%%%% Triso particle, which matches the one in "trisos.inp"
+particle p_triso
+fuel 0.025
+buffer 0.034
+PyC 0.038
+SiC     0.0415
+PyC 0.0455
+peb_graph
+
+%%%% Lattice of TRISO particles, from defined particle universe and positions/radii in file "trisos.inp"
+
+% Import in "trisos" universe and background universe is "u_graph"
+pbed trisos u_graph "trisos.inp"
+
+% Create TRISOs lattice's background universe, "u_graph", meaning that the matrix material is "peb_shell"
+surf infinite inf
+cell inf u_graph  peb_shell -infinite
+
+%%%% Create pebbles surfaces and cells
+
+% Surface between fueled and not fueled (shell) zones of the pebble
+surf fueled_zone sph 0 0 0 2.5 % graphite matrix maximum radius (outside limit for pebble of 3cm defined in "HTR-10_0.inp")
+surf pebble_surf sph 0 0 0 3 % graphite pebble maximum radius
+
+% Fueled zone, filled with the "trisos" lattice, and shell cells
+cell c_pebble_matrix u_fuel_pebble fill trisos -fueled_zone
+cell c_pebble_shell u_fuel_pebble  peb_shell fueled_zone
+
+% Graphite pebble, filled with graphite
+cell c_graph_peb u_graph_pebble peb_graph -pebble_surf
+
+% Pebble bed, with positions from file "HTR-10_0.inp" (put into "u_pb")
+% The main universe (0) is filled with the pebble bed universe "u_pb", and the background universe is the "geom" universe defined above
+pbed u_pb geom "HTR-10_0.inp"
+cell c_pb 0 fill u_pb  -s_9 p_1 -p_11
+cell c_out_1 0 outside  s_9 p_1 -p_11 
+cell c_out_2 0 outside -p_1
+cell c_out_3 0 outside  p_11
+
+%%%%%%%%%%%%% Outer borings, helium inlet %%%%%%%%%%%
+surf s_outer_borings_in cylz 0 0 140.6
+surf s_outer_borings_out cylz 0 0 148.6
+
+surf s_inlet_helium cylz 0 0 4.0
+
+cell c_inlet_helium_1_in    inlet_helium He                     -s_inlet_helium -p_2
+cell c_inlet_helium_1_out   inlet_helium C_bricks                s_inlet_helium -p_2
+cell c_inlet_helium_2_in    inlet_helium He                     -s_inlet_helium  p_2 -p_3
+cell c_inlet_helium_2_out   inlet_helium boronated_C_bricks      s_inlet_helium  p_2 -p_3
+cell c_inlet_helium_3_in    inlet_helium He                     -s_inlet_helium  p_3 -p_4
+cell c_inlet_helium_3_out   inlet_helium graph_refl              s_inlet_helium  p_3 -p_4
+cell c_inlet_helium_4_in    inlet_helium He                     -s_inlet_helium  p_4 -p_5
+cell c_inlet_helium_4_out   inlet_helium graph_refl              s_inlet_helium  p_4 -p_5
+cell c_inlet_helium_5_in    inlet_helium He                     -s_inlet_helium  p_5 -p_7
+cell c_inlet_helium_5_out   inlet_helium graph_refl              s_inlet_helium  p_5 -p_7
+cell c_inlet_helium_6_in    inlet_helium He                     -s_inlet_helium  p_7 -p_8
+cell c_inlet_helium_6_out   inlet_helium graph_refl              s_inlet_helium  p_7 -p_8
+cell c_inlet_helium_7       inlet_helium graph_refl              p_8 -p_10
+cell c_inlet_helium_8       inlet_helium boronated_C_bricks      p_10
+
+lat outer_borings 4 0 0 1 20 144.6 9 inlet_helium inlet_helium inlet_helium inlet_helium inlet_helium inlet_helium inlet_helium inlet_helium inlet_helium inlet_helium inlet_helium inlet_helium inlet_helium inlet_helium inlet_helium inlet_helium inlet_helium inlet_helium inlet_helium inlet_helium
+cell c_outer_borings geom fill outer_borings s_outer_borings_in -s_outer_borings_out p_1 -p_11
+
+%%%%%%%%%%%%% Inner borings, CR/KLAK %%%%%%%%%%%
+surf s_inner_borings_in cylz 0 0 95.6
+surf s_inner_borings_out cylz 0 0 108.6
+
+%% CR
+surf s_CR cylz 0 0 6.5 
+
+cell c_CR_1_in    CR C_bricks               -s_CR -p_2
+cell c_CR_1_out   CR C_bricks                s_CR -p_2
+cell c_CR_2_in    CR boronated_C_bricks     -s_CR p_2 -p_3
+cell c_CR_2_out   CR boronated_C_bricks      s_CR p_2 -p_3
+cell c_CR_3_in    CR graph_refl             -s_CR p_3 -p_4
+cell c_CR_3_out   CR graph_refl              s_CR p_3 -p_4
+cell c_CR_4_in    CR He                     -s_CR p_4 -p_5
+cell c_CR_4_out   CR graph_refl              s_CR p_4 -p_5
+cell c_CR_5_in    CR He                     -s_CR p_5 -p_7
+cell c_CR_5_out   CR graph_refl              s_CR p_5 -p_7
+cell c_CR_6_in    CR He                     -s_CR p_7 -p_8
+cell c_CR_6_out   CR graph_refl              s_CR p_7 -p_8
+cell c_CR_7_in    CR He                     -s_CR p_8 -p_10
+cell c_CR_7_out   CR graph_refl              s_CR p_8 -p_10
+cell c_CR_8_in    CR He                     -s_CR p_10
+cell c_CR_8_out   CR boronated_C_bricks      s_CR p_10
+
+%% KLAK
+surf s_KLAK_round cylz  0 0 3
+surf s_KLACK_cub rect -3 3 -5 5
+surf s_KLACK_c1 cylz 0 -5 3
+surf s_KLACK_c2 cylz 0  5 3
+
+cell c_KLAK_1_in    KLAK He                     -s_KLAK_round -p_2
+cell c_KLAK_1_out   KLAK C_bricks                s_KLAK_round -p_2
+cell c_KLAK_2_in    KLAK He                     -s_KLAK_round p_2 -p_3
+cell c_KLAK_2_out   KLAK boronated_C_bricks      s_KLAK_round p_2 -p_3
+cell c_KLAK_3_in    KLAK He                     -s_KLAK_round p_3 -p_4
+cell c_KLAK_3_out   KLAK graph_refl              s_KLAK_round p_3 -p_4
+cell c_KLAK_4_in    KLAK He                     -s_KLAK_round p_4 -p_5
+cell c_KLAK_4_out   KLAK graph_refl              s_KLAK_round p_4 -p_5
+cell c_KLAK_5_cub   KLAK He                      p_5 -p_7 -s_KLACK_cub
+cell c_KLAK_5_c1    KLAK He                      p_5 -p_7  s_KLACK_cub -s_KLACK_c1
+cell c_KLAK_5_c2    KLAK He                      p_5 -p_7  s_KLACK_cub -s_KLACK_c2
+cell c_KLAK_5_out   KLAK graph_refl              s_KLAK_round p_5 -p_7 s_KLACK_cub s_KLACK_c1 s_KLACK_c2
+cell c_KLAK_6_in    KLAK He                     -s_KLAK_round p_7 -p_8
+cell c_KLAK_6_out   KLAK graph_refl              s_KLAK_round p_7 -p_8
+cell c_KLAK_7_in    KLAK He                     -s_KLAK_round p_8 -p_10
+cell c_KLAK_7_out   KLAK graph_refl              s_KLAK_round p_8 -p_10
+cell c_KLAK_8_in    KLAK He                     -s_KLAK_round p_10
+cell c_KLAK_8_out   KLAK boronated_C_bricks      s_KLAK_round p_10
+
+lat inner_borings 4 0 0 1 20 98.6 9 CR CR KLAK CR KLAK CR KLAK CR KLAK CR CR CR KLAK CR CR CR KLAK CR KLAK CR
+
+%% Problem 1: KLAK channels are not rotated (all of them point towards vertical direction)
+%% => Transform every KLAK channel with rotation with the right angle based on this index
+trans L inner_borings 3 rot 0 0 0 0 0 1 45
+trans L inner_borings 5 rot 0 0 0 0 0 1 81
+trans L inner_borings 7 rot 0 0 0 0 0 1 117
+trans L inner_borings 9 rot 0 0 0 0 0 1 153
+trans L inner_borings 13 rot 0 0 0 0 0 1 225
+trans L inner_borings 17 rot 0 0 0 0 0 1 297
+trans L inner_borings 19 rot 0 0 0 0 0 1 333
+
+% Problem 2: Control rod channels have to be slightly translated (3.5 cm) taking into account the angle
+% => Transform every KLAK channel with translation with right deltaX and deltaY giving a hypothenuse of 3.5 cm.
+trans L inner_borings 1 3.4569091920829824 0.547520627640808 0
+trans L inner_borings 2 3.1185228346592875 1.5889667490884136 0
+trans L inner_borings 4 1.5889667490884138 3.1185228346592875 0
+trans L inner_borings 6 -0.5475206276408082 3.456909192082982 0
+trans L inner_borings 8 -2.4748737341529163 2.474873734152916 0
+trans L inner_borings 10 -3.4569091920829824 0.547520627640808 0
+trans L inner_borings 11 -3.4569091920829824 -0.547520627640808 0
+trans L inner_borings 12 -3.1185228346592875 -1.5889667490884136 0
+trans L inner_borings 14 -1.5889667490884138 -3.1185228346592875 0
+trans L inner_borings 15 -0.5475206276408082 -3.456909192082982 0
+trans L inner_borings 16 0.5475206276408074 -3.4569091920829824 0
+trans L inner_borings 18 2.474873734152916 -2.474873734152917 0
+trans L inner_borings 20 3.4569091920829815 -0.5475206276408089 0
+
+cell c_inner_borings geom fill inner_borings s_inner_borings_in -s_inner_borings_out p_1 -p_11

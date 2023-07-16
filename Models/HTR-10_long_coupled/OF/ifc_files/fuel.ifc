@@ -1,0 +1,57 @@
+7 fuel
+1 ./ifc/fluidRegion/powerDensityNeutronics
+-10.5 700
+1000 4 10 9 8 7
+./OF/constant/polyMesh/points
+./OF/constant/polyMesh/faces
+./OF/constant/polyMesh/owner
+./OF/constant/polyMesh/neighbour
+-1
+./ifc/fluidRegion/Tfav.nuclearSteadyStatePebble 1
+-1
+
+%%%%%%%%%%% SYNTAX HELP %%%%%%%%%%
+% TYPE UNI BG_UNI OUT
+% OUTFILE
+% RHO0 T0
+% MESH_SPLIT MESH_DIM SZ1 SZ2 ... SZMESH_DIM
+% POINTS_FILE
+% FACES_FILE
+% OWNER_FILE
+% NEIGHBOUR_FILE
+% MATERIALS_FILE
+% DENSITY_FILE DM
+% TEMPERATURE_FILE TM
+% MAPPING_FILE
+
+%%%%%%%%%% PARAMETER MEANING %%%%%%%%%%
+% The first line contains some basic information about the interface:
+% TYPE 	 : the interface type (9 to also create the geometry)
+% UNI 	 : universe name for the irregular geometry
+% BGUNI 	 : name of the background universe filling all undefined space
+% OUT 	 : the output flag (1/0). If the flag is not set, the second line is omitted.
+
+% If the output flag is set, the next parameter contains the path to the output file. If the output flag is not set the next parameter should be omitted. The parameters for the output are:
+% OUTFILE 	 : determines the file name to which the output is printed
+% 
+% The next line contains the nominal density and temperature for the interface:
+% RHO0 	 : Nominal density to be used for the interface
+% T0 	 : Nominal temperature to be used for the interface
+
+ 
+% The fourth line contains information about the adaptive search mesh:
+% MESH_SPLIT 	 : Splitting criterion for the adaptive search mesh (maximum number of unstructured mesh cells in search mesh cell)
+% MESH_DIM 	 : number of levels in the adaptive search mesh
+% SZi 	 : Size of the search mesh at level i
+ 
+% After the options for the search mesh come the file paths:
+% POINTS_FILE 	 : Path to the unstructured mesh points file
+% FACES_FILE 	 : Path to the unstructured mesh faces file
+% OWNER_FILE 	 : Path to the unstructured mesh owner file
+% NEIGHBOUR_FILE 	 : Path to the unstructured mesh neighbour file
+% MATERIALS_FILE 	 : Path to the unstructured mesh material file
+% DENSITY_FILE 	 : Path to the unstructured mesh density file or -1 if the nominal density is to be used.
+% DM 	 : Flag indicating the type of values in the density file (1 = given value is the cell density)
+% TEMPERATURE_FILE 	 : Path to the unstructured mesh temperature file or -1 if the nominal temperature is to be used
+% TM 	 : Flag indicating the type of values in the temperature file (1 = given value is the cell temperature, 2 = given value is incremented to the nominal temperature)
+% MAPPING_FILE 	 : Path to the power output mapping file or -1 (-1 maps each cell to a separate power tally bin) If the output flag is not set, this line can be omitted. 

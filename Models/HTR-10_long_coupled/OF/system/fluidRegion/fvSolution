@@ -1,0 +1,78 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+|       ______          _   __           ______                               |
+|      / ____/  ___    / | / /          / ____/  ____   ____ _   ____ ___     |
+|     / / __   / _ \  /  |/ /  ______  / /_     / __ \ / __ `/  / __ `__ \    |
+|    / /_/ /  /  __/ / /|  /  /_____/ / __/    / /_/ // /_/ /  / / / / / /    |
+|    \____/   \___/ /_/ |_/          /_/       \____/ \__,_/  /_/ /_/ /_/     |
+|    Copyright (C) 2015 - 2022 EPFL                                           |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      fvSolution;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+solvers
+{
+    p_rgh
+    {
+        solver          GAMG;
+        smoother        DIC;
+        tolerance       1e-6;
+        relTol          0;
+    }
+
+    p_rghFinal
+    {
+        $p_rgh;
+        relTol          0;
+    }
+
+    "e"
+    {
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        tolerance       1e-5;
+        relTol          0;
+        minIter         0;
+    }
+
+    "h"
+    {
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        tolerance       1e-5;
+        relTol          0;
+        minIter         0;
+    }
+
+    ".*"
+    {
+        solver          PBiCGStab;
+        preconditioner  diagonal;
+        tolerance       1e-05;
+        relTol          0.01;
+    }
+}
+
+PIMPLE // a detailed explanation of this dictionary is available in this 
+       // same fvSolution file of the 1D_boiling tutorial
+{
+    nCorrectors      2;//pressure-velocity correctors
+    nNonOrthogonalCorrectors 1;
+    // partialEliminationMode      implicit;
+    momentumMode                faceCentered;
+}
+
+relaxationFactors
+{
+    equations
+    {
+        ".*"            0.8;
+    }
+}
+
+// ************************************************************************* //

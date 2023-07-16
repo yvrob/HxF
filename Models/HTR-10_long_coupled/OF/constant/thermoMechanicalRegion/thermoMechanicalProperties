@@ -1,0 +1,34 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+|       ______          _   __           ______                               |
+|      / ____/  ___    / | / /          / ____/  ____   ____ _   ____ ___     |
+|     / / __   / _ \  /  |/ /  ______  / /_     / __ \ / __ `/  / __ `__ \    |
+|    / /_/ /  /  __/ / /|  /  /_____/ / __/    / /_/ // /_/ /  / / / / / /    |
+|    \____/   \___/ /_/ |_/          /_/       \____/ \__,_/  /_/ /_/ /_/     |
+|    Copyright (C) 2015 - 2022 EPFL                                           |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      thermoMechanicalProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+model               linearElasticThermoMechanics;	//only model available now
+
+// constants needed to calculate deformation of fuel, control rods AND structure
+// (1D expansion for fuel and CR, displacement-based solver for structures)
+
+planeStress     	no;
+
+linkedFuel      	false; 		// true if there is contact between fuel and
+								// cladding (expansion driven by cladding)
+fuelOrientation   	(0 0 1);
+
+TStructRef			668; 		//ref temperature for structures
+
+zones
+();
+
+// ************************************************************************* //
