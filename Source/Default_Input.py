@@ -56,3 +56,6 @@ DEM_files_prefix = 'step'
 extra_fields = []
 base_reordering = None
 different_positions = False
+
+#%% Thermal coupling
+thermal_coupling = False

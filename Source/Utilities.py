@@ -23,7 +23,6 @@ def start_Serpent(serpent_executable, ncores, input_files, nnodes=1, verbosity=1
 	cb.LOG.set_compiled_table(True)
 	if isinstance(input_files, str):
 		input_files = rec_Serpent_file_search(input_files)
-
 	if nnodes > 1:
 		# It seems that on Savio, SLURM needs another process to be spawned to make Cerberus understand it needs to book the right number of nodes
 		print("Dummy Serpent")
@@ -77,7 +76,7 @@ def rec_Serpent_file_search(main_input, verbose=True, level=0, log_delim='\t'):
 	if verbose:
 		print(f'{log_delim*level}Reading: {main_input}', flush=True)
 	files_to_read = [main_input]
-	if main_input.split('.')[-1] == 'stl':
+	if main_input.split('.')[-1] in ['stl','ifc']:
 		return files_to_read
 	elif '.wrk' in main_input:
 		return files_to_read
@@ -106,6 +105,8 @@ def rec_Serpent_file_search(main_input, verbose=True, level=0, log_delim='\t'):
 			# 		field_spot = 3
 			else:
 				continue
+		elif cmd == 'ifc':
+			field_spot = 1
 		else:
 			continue
 
@@ -272,25 +273,25 @@ def init_case(case_name, python_input, path_to_case, output_name=None):
 		shutil.rmtree(f'Cases/{output_name}/')
 	except:
 		pass
-	try:
-		shutil.copytree(f'{path_to_case}/{case_name}/', f'Cases/{output_name}/')
-	except:
-		pass
+	shutil.copytree(f'{path_to_case}/{case_name}/', f'Cases/{output_name}/')
+
 	print(f'Creating folder at ./Cases/{output_name}/ and copying input')
-	for path_folder in [f'Cases/{output_name}/Plots/', f'Cases/{output_name}/Data/', f'Cases/{output_name}/Restarts/', f'Cases/{output_name}/wrk_Serpent/']:
+	for path_folder in [f'Cases/{output_name}/Plots/', f'Cases/{output_name}/Data/', f'Cases/{output_name}/wrk_Serpent/']:
 		os.makedirs(path_folder, exist_ok=True)
 	for file in [python_input, 'Source/Default_Input.py']:
 		if file[-3:] != '.py':
 			file += '.py'
 		shutil.copy(file, f'Cases/{output_name}/')
 	shutil.copy('Utils/tuto1', f'Cases/{output_name}/')
+	if os.path.exists(f'{path_to_case}/{case_name}/OF') and os.path.isdir(f'{path_to_case}/{case_name}/OF'):
+		shutil.copytree(f'{path_to_case}/{case_name}/OF', f'Cases/{output_name}/wrk_Serpent/OF')
 
 def reset_case(to_recreate='all'):
 	if isinstance(to_recreate, str) and to_recreate=='all':
-		to_recreate = ['./Plots/', './Data/', './Restarts/', './wrk_Serpent/']
+		to_recreate = ['./Plots/', './Data/', './wrk_Serpent/']
 	elif isinstance(to_recreate, str):
 		to_recreate = [to_recreate]
-	for path_folder in ['./Plots/', './Data/', './Restarts/', './wrk_Serpent/']:
+	for path_folder in ['./Plots/', './Data/', './wrk_Serpent/']:
 		if os.path.exists(path_folder):
 			shutil.rmtree(path_folder)
 	for path_folder in to_recreate:

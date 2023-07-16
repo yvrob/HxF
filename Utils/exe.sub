@@ -2,6 +2,10 @@
 
 # Load the environment
 source ${CONFIGURATION_FILE} ${CONDA_ENVIRONMENT}
+if [ -n "$OF_BASHRC" ]; then
+    source $OF_BASHRC
+fi
+
 
 # Run the Python script
 mpirun -np 1 --report-bindings --bind-to none -oversubscribe python ${PYTHON_SCRIPT} ${INPUT_SCRIPT} ${PARTITION_CPUS_PER_NODE} ${NNODES}

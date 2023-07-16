@@ -17,6 +17,10 @@ do
     export $var
 done
 
+if [ -n "$OF_BASHRC" ]; then
+    export OF_BASHRC
+fi
+
 # Set SLURM parameters
 export PARTITION_CPUS_PER_NODE=$(sinfo -p ${PARTITION} --Node --format="%C" | sed 's/[^0-9\/]*//g' | tr '/' '\n' | sort -n | tail -n 1)
 if [ -n "$SUFFIX_JOB" ]; then
