@@ -1,0 +1,31 @@
+
+/*
+ crossSection dictionary
+ Generatd by serpentToFoamXS 
+ 04-Aug-2014
+ From SERPENT results file: esfr_core__res
+*/
+
+/*
+physical delayed neutron fraction and spectrum
+*/
+
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    constant;
+    object      esfr_core__res;
+}
+
+ energyGroups 1 ; 
+
+ precGroups 8 ; 
+ TfuelRef 9.000000e+02 ; 
+ TfuelPerturbed 1.200000e+03 ; 
+zones 
+ ( 
+
+
+ ); 

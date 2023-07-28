@@ -16,20 +16,52 @@ np.random.seed(12345)
 
 def print_with_timestamp(message):
     timestamp = datetime.datetime.now().strftime("[%m/%d/%Y %H:%M:%S]")
-    print(timestamp, message)
+    print(timestamp, message, flush=True)
+
+def process_input(input_files, pbed_universe_name):
+	# Clean input files
+	if isinstance(input_files, str):
+		input_files = rec_Serpent_file_search(input_files, verbose=False)
+	print_with_timestamp("Cleaning input files...")
+	patterns = (r"^set[ \t]depout[ \t]", r"^dep[ \t]", r"^set[ \t]inventory[ \t]", r"^det(?=.*dl[ \t]+{0}[ \t])".format(re.escape(pbed_universe_name)), r"^set[ \t]rfr[ \t]", r"^set[ \t]rfw[ \t]", r"^set[ \t]acelib[ \t]", r"^set[ \t]declib[ \t]", r"^set[ \t]nfylib[ \t]", r"^set[ \t]dd[ \t]", r"^set[ \t]relfactor[ \t]")
+	for file_path in input_files:
+		modified_lines = []
+		removed_lines = []
+
+		with open(file_path, "r") as f:
+			lines = f.readlines()
+
+		for line in lines:
+			if any(re.match(pattern, line) for pattern in patterns):
+				removed_lines.append(line)
+			else:
+				modified_lines.append(line)
+
+		if removed_lines:
+			print_with_timestamp(f"Lines removed from {file_path}:")
+			for removed_line in removed_lines:
+				print_with_timestamp(f'\t{removed_line.strip()}')
+			with open(file_path, "w") as f: # Write the modified lines back to the file
+				f.writelines(modified_lines)
+
+	# Add to input important lines
+	with open(input_files[0], 'a') as f:
+		f.write('\nset depout 2 2\n') # removes .dep and dep.m files
+		f.write('\ndep butot 1\n') # make depletion calculation
 
 def start_Serpent(serpent_executable, ncores, input_files, nnodes=1, verbosity=1):
 	cb.LOG.set_verbosity(verbosity)
 	cb.LOG.set_compiled_table(True)
 	if isinstance(input_files, str):
 		input_files = rec_Serpent_file_search(input_files)
+	
 	if nnodes > 1:
 		# It seems that on Savio, SLURM needs another process to be spawned to make Cerberus understand it needs to book the right number of nodes
-		print("Dummy Serpent")
+		print_with_timestamp("Dummy Serpent")
 		from mpi4py import MPI
 		child_comm = MPI.COMM_SELF.Spawn(serpent_executable, args=["tuto1"], maxprocs=nnodes - 1) # replace by dummy command that does not crash
 
-	print("\nInitializing Serpent. Waiting...")
+	print_with_timestamp("Initializing Serpent. Waiting...")
 	serpent = Solver("Serpent", serpent_executable, f"-omp {ncores} -port".split())
 	serpent.input = CodeInput(input_files, main_input_idx=0)
 	if nnodes==1:
@@ -74,7 +106,7 @@ def count_plots(serpent_input_files):
 
 def rec_Serpent_file_search(main_input, verbose=True, level=0, log_delim='\t'):
 	if verbose:
-		print(f'{log_delim*level}Reading: {main_input}', flush=True)
+		print_with_timestamp(f'{log_delim*level}Reading: {main_input}')
 	files_to_read = [main_input]
 	if main_input.split('.')[-1] in ['stl','ifc']:
 		return files_to_read
@@ -136,7 +168,7 @@ def rec_Serpent_file_search(main_input, verbose=True, level=0, log_delim='\t'):
 					files_to_read += rec_Serpent_file_search(os.path.normpath(os.path.join(path, file_name)), verbose=verbose, level=level+1, log_delim=log_delim)
 	if len(files_to_read) > 1:
 		if verbose:
-			print(f'{log_delim*(level+1)}Additional files ({len(files_to_read)-1}): {files_to_read[1:]}')
+			print_with_timestamp(f'{log_delim*(level+1)}Additional files ({len(files_to_read)-1}): {files_to_read[1:]}')
 
 	return files_to_read
 
@@ -255,7 +287,7 @@ def use_disperser(geom_type, args_geom, N_particles, r_particles, particles_uni,
 	return data, PF, N_spheres, output
 	# Nspheres =
 	# n
-	#print(output.decode("utf-8") )
+	#print_with_timestamp(output.decode("utf-8") )
 
 def convert_pos_to_simple_pbed(pos_file_path, radii, universes, path_out=None, translation=[0,0,0], scale_factors=[1,1,1], del_in=',', header=None):
 	positions = pd.read_csv(pos_file_path, delimiter=del_in, names=['x','y','z'], header=header)
@@ -275,7 +307,7 @@ def init_case(case_name, python_input, path_to_case, output_name=None):
 		pass
 	shutil.copytree(f'{path_to_case}/{case_name}/', f'Cases/{output_name}/')
 
-	print(f'Creating folder at ./Cases/{output_name}/ and copying input')
+	print_with_timestamp(f'Creating folder at ./Cases/{output_name}/ and copying input')
 	for path_folder in [f'Cases/{output_name}/Plots/', f'Cases/{output_name}/Data/', f'Cases/{output_name}/wrk_Serpent/']:
 		os.makedirs(path_folder, exist_ok=True)
 	for file in [python_input, 'Source/Default_Input.py']:
@@ -323,7 +355,7 @@ def Serpent_get_values(transferrable, serpent_instance=None, input_parameter=Fal
 		tra = Serpent_get(transferrable, serpent_instance, input_parameter=input_parameter)
 	else:
 		tra = get_transferrable(transferrable, serpent_instance, input_parameter=input_parameter)
-	#print(f'Getting transferrable values for "{tra.name}"')
+	#print_with_timestamp(f'Getting transferrable values for "{tra.name}"')
 	values = tra.value_vec
 	if return_singles and len(values) == 1:
 		values = values[0]
@@ -340,7 +372,7 @@ def Serpent_get_multiple_values(transferrables_matrix, serpent_instance=None, in
 					tra = Serpent_get(transferrable, serpent_instance, input_parameter=input_parameter)
 				else:
 					tra = get_transferrable(transferrable, serpent_instance, input_parameter=input_parameter)
-				#print(f'Getting transferrable values for "{tra.name}"')
+				#print_with_timestamp(f'Getting transferrable values for "{tra.name}"')
 				values = tra.value_vec
 				if return_singles and len(values) == 1:
 					values = values[0]
@@ -353,7 +385,7 @@ def Serpent_get_multiple_values(transferrables_matrix, serpent_instance=None, in
 						tra = Serpent_get(transferrable, serpent_instance, input_parameter=input_parameter)
 					else:
 						tra = get_transferrable(transferrable, serpent_instance, input_parameter=input_parameter)
-					#print(f'Getting transferrable values for "{tra.name}"')
+					#print_with_timestamp(f'Getting transferrable values for "{tra.name}"')
 					values = tra.value_vec
 					if return_singles and len(values) == 1:
 						values = values[0]
@@ -367,7 +399,7 @@ def Serpent_get_multiple_values(transferrables_matrix, serpent_instance=None, in
 							tra = Serpent_get(transferrable, serpent_instance, input_parameter=input_parameter)
 						else:
 							tra = get_transferrable(transferrable, serpent_instance, input_parameter=input_parameter)
-						#print(f'Getting transferrable values for "{tra.name}"')
+						#print_with_timestamp(f'Getting transferrable values for "{tra.name}"')
 						values = tra.value_vec
 						if return_singles and len(values) == 1:
 							values = values[0]
@@ -382,7 +414,7 @@ def Serpent_get_multiple_values(transferrables_matrix, serpent_instance=None, in
 								tra = Serpent_get(transferrable, serpent_instance, input_parameter=input_parameter)
 							else:
 								tra = get_transferrable(transferrable, serpent_instance, input_parameter=input_parameter)
-							#print(f'Getting transferrable values for "{tra.name}"')
+							#print_with_timestamp(f'Getting transferrable values for "{tra.name}"')
 							values = tra.value_vec
 							if return_singles and len(values) == 1:
 								values = values[0]
@@ -398,7 +430,7 @@ def Serpent_get_multiple_values(transferrables_matrix, serpent_instance=None, in
 									tra = Serpent_get(transferrable, serpent_instance, input_parameter=input_parameter)
 								else:
 									tra = get_transferrable(transferrable, serpent_instance, input_parameter=input_parameter)
-								#print(f'Getting transferrable values for "{tra.name}"')
+								#print_with_timestamp(f'Getting transferrable values for "{tra.name}"')
 								values = tra.value_vec
 								if return_singles and len(values) == 1:
 									values = values[0]
@@ -412,7 +444,7 @@ def Serpent_get_material_wise(parent_name, parameter, serpent_instance, prefix='
 
 def Serpent_set_values(transferrable, values, serpent_instance=None, communicate=True):
 	tra = get_transferrable(transferrable, serpent_instance, input_parameter=True)
-	#print(f'Setting transferrable "{tra.name}" to values : {values}')
+	#print_with_timestamp(f'Setting transferrable "{tra.name}" to values : {values}')
 	if isinstance(values, (int, float, np.integer)):
 		values = [values]
 	tra.value_vec = np.array(values)
@@ -428,20 +460,20 @@ def Serpent_set_multiple_values(transferrables_matrix, values_matrix, serpent_in
 		for i, transferrable in enumerate(transferrables_matrix):
 			if not ignore_None or not isinstance(transferrable, type(None)):
 				tra = Serpent_set_values(transferrable, values_matrix[i], serpent_instance=serpent_instance)
-			#print(f'Setting transferrable values for "{tra.name}"')
+			#print_with_timestamp(f'Setting transferrable values for "{tra.name}"')
 	elif dim == 2:
 		for i, el0 in enumerate(transferrables_matrix):
 			for j, transferrable in enumerate(el0):
 				if not ignore_None or not isinstance(transferrable, type(None)):
 					tra = Serpent_set_values(transferrable, values_matrix[i,j], serpent_instance=serpent_instance)
-					#print(f'Setting transferrable values for "{tra.name}"')
+					#print_with_timestamp(f'Setting transferrable values for "{tra.name}"')
 	elif dim == 3:
 		for i, el0 in enumerate(transferrables_matrix):
 			for j, el1 in enumerate(el0):
 				for k, transferrable in enumerate(el1):
 					if not ignore_None or not isinstance(transferrable, type(None)):
 						tra = Serpent_set_values(transferrable, values_matrix[i,j,k], serpent_instance=serpent_instance)
-					#print(f'Setting transferrable values for "{tra.name}"')
+					#print_with_timestamp(f'Setting transferrable values for "{tra.name}"')
 	elif dim == 4:
 		for i, el0 in enumerate(transferrables_matrix):
 			for j, el1 in enumerate(el0):
@@ -449,7 +481,7 @@ def Serpent_set_multiple_values(transferrables_matrix, values_matrix, serpent_in
 					for l, transferrable in enumerate(el2):
 						if not ignore_None or not isinstance(transferrable, type(None)):
 							tra = Serpent_set_values(transferrable, values_matrix[i,j,k,l], serpent_instance=serpent_instance)
-						#print(f'Setting transferrable values for "{tra.name}"')
+						#print_with_timestamp(f'Setting transferrable values for "{tra.name}"')
 	elif dim == 5:
 		for i, el0 in enumerate(transferrables_matrix):
 			for j, el1 in enumerate(el0):
@@ -458,7 +490,7 @@ def Serpent_set_multiple_values(transferrables_matrix, values_matrix, serpent_in
 						for m, transferrable in enumerate(el3):
 							if not ignore_None or not isinstance(transferrable, type(None)):
 								tra = Serpent_set_values(transferrable, values_matrix[i,j,k,l,m], serpent_instance=serpent_instance)
-							#print(f'Setting transferrable values for "{tra.name}"')
+							#print_with_timestamp(f'Setting transferrable values for "{tra.name}"')
 	return values_matrix
 
 def Serpent_set_same_values(list_transferrables, values, serpent_instance=None, communicate=True):
@@ -466,7 +498,7 @@ def Serpent_set_same_values(list_transferrables, values, serpent_instance=None, 
 		values = np.array([values], dtype=type(values))
 	for transferrable in list_transferrables:
 		tra = get_transferrable(transferrable, serpent_instance, input_parameter=True)
-		#print(f'Setting transferrable "{tra.name}" to user-defined values') # : {values}')
+		#print_with_timestamp(f'Setting transferrable "{tra.name}" to user-defined values') # : {values}')
 		tra.value_vec = values
 		if communicate:
 			tra.communicate()
@@ -478,7 +510,7 @@ def Serpent_set_option(transferrable, serpent_instance=None, turn_on=True, commu
 		tra.value_vec[0] = 1
 	else:
 		tra.value_vec[0] = 0
-		#print(f'Setting transferrable "{tra.name}" to value : {tra.value_vec[0]}')
+		#print_with_timestamp(f'Setting transferrable "{tra.name}" to value : {tra.value_vec[0]}')
 	if communicate:
 		tra.communicate()
 	return tra
@@ -571,7 +603,7 @@ def ZAI_to_name(ZAI):
 
 		Z = int(ZA/1000)
 		if Z > 120:
-				print('nan')
+				print_with_timestamp('nan')
 		element = Z_to_element(Z)
 		A = int(ZA-Z*1000)
 		if A == 0:
@@ -672,7 +704,9 @@ def get_domain_candidates(nnodes, max_domains):
 
 def nodes_to_dd(nnodes, allowed_decomposition_types, max_domains):
 	candidates = get_domain_candidates(nnodes, max_domains)
-	print(candidates, max_domains, nnodes)
+	print_with_timestamp(candidates)
+	print_with_timestamp(max_domains)
+	print_with_timestamp(nnodes)
 	best_score = 0
 	for c in candidates:
 		score = np.sum(np.power(c, np.arange(len(c), 0, -1)))

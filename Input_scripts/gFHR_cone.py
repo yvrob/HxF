@@ -76,8 +76,8 @@ else:
         looper_method = 'rz'
 
 #%% Outputing
-output_folder_name = 'gFHR_dem_cone' # Name of the output folder
-verbosity_mode = 0
+output_folder_name = 'gFHR_dem_cone_short' # Name of the output folder
+verbosity_mode = 1
 inventory_names = []
 
 #%% Domain decomposition
@@ -96,8 +96,8 @@ if write_restart_discarded:
 #%% Restart read
 if restart_calculation:
     restart_step = 0
-    restart_binary = '/global/scratch/users/yvesrobert/HxF_dev/Cases/gFHR_dm_restart_FTC/wrk_Serpent/input.wrk_250' #'/global/scratch/users/yvesrobert/HxF_dev/Cases/gFHR_dm_restart/wrk_Serpent/spectrum_restart/final_gFHR_dm_equilibrium.wrk'
-    restart_data =   '/global/scratch/users/yvesrobert/HxF_dev/Cases/gFHR_dm_restart_FTC/Data/core_250.csv' #'/global/scratch/users/yvesrobert/HxF_dev/Cases/gFHR_dm_restart/Data/first_data.csv'
+    restart_binary = '/global/scratch/users/yvesrobert/HxF_dev/Cases/gFHR_dm_restart4/wrk_Serpent/input.wrk_578' #'/global/scratch/users/yvesrobert/HxF_dev/Cases/gFHR_dm_restart/wrk_Serpent/spectrum_restart/final_gFHR_dm_equilibrium.wrk'
+    restart_data =   '/global/scratch/users/yvesrobert/HxF_dev/Cases/gFHR_dm_restart4/Data/core_578.csv' #'/global/scratch/users/yvesrobert/HxF_dev/Cases/gFHR_dm_restart/Data/first_data.csv'
     different_positions = True
 elif read_first_compositions:
     restart_binary = '/global/scratch/users/yvesrobert/HxF_dev/Cases/gFHR_dm_restart_FTC/wrk_Serpent/input.wrk_250' #'/global/scratch/users/yvesrobert/HxF_dev/Cases/gFHR_dm_restart/wrk_Serpent/spectrum_restart/final_gFHR_dm_equilibrium.wrk'

@@ -1,0 +1,29 @@
+
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    constant;
+    object      esfr_core__res;
+}
+
+// in case one wants to move control rods, he/she should here define the control rods he/she wants to move
+// CRs must be aligned with z axis
+
+zones 
+ ( 
+
+
+ ); 
+//example
+/*
+controlRod
+{
+ startTime 200.5;
+ endTime  201.7;
+ speed	0.0; // positive entering the core
+ initialDistanceFromMeshCR 0.0; // distance from the position defined in the mesh (postive towards the core) 
+ followerName	follower; 
+} 
+*/

@@ -28,8 +28,8 @@ if [ -n "$SUFFIX_JOB" ]; then
 fi
 export JOB_NAME=$(basename $INPUT_SCRIPT | cut -d. -f1)${SUFFIX_JOB}
 mkdir -p ./Logs
-export OUTPUT_FILE="./Logs/${JOB_NAME}${SUFFIX_JOB}.o"
-export ERROR_FILE="./Logs/${JOB_NAME}${SUFFIX_JOB}.err"
+export OUTPUT_FILE="./Logs/${JOB_NAME}.o"
+export ERROR_FILE="./Logs/${JOB_NAME}.err"
 SECONDS=$((NHOURS * 3600))
 export TIMELIMIT=$(printf '%02d:%02d:%02d\n' $(($SECONDS/3600)) $(($SECONDS%3600/60)) $(($SECONDS%60)))
 

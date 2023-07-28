@@ -1,7 +1,7 @@
 # Known issues:
-# - Restart, first step corresponds to old data after burning, it is correct but the keff will be different than the one before burning (reported in HxF)
 # - Domain decomposition, if uncommented, takes too long to update domains -> changes to Serpent source code to do
-# - If inventory is empty Serpent does not work, if no need for inventory, just add it in the model and not in the Python input
+# - When using more than 15000 neutrons/(cycle.node) it happens that the calculation just holds for ever
+# - Thermal coupling with domain decomposition does not work
 
 print("""
 ============================================================
@@ -47,6 +47,7 @@ import sys
 from copy import deepcopy
 import inspect
 import math
+import shutil
 from scipy.spatial import cKDTree
 
 np.random.seed(12345)
@@ -114,6 +115,7 @@ original_path = str(os.getcwd())
 init_case(case_name, filename_input, path_to_case, output_folder_name) # Copy input files in output folder
 os.chdir(f'Cases/{output_folder_name}') # Go to output folder
 atexit.register(os.chdir, original_path) # Come back to original folder when the script ends (even if error)
+process_input(main_input_file, pbed_universe_name)
 
 #%% Inventory
 inventory_names  = process_inventory(inventory_names) # translate keywords to isotopes if needed
@@ -174,9 +176,9 @@ if not discrete_motion:
     if not os.path.exists(positions_folder):
         raise Exception(f'DEM motion selected but positions folder {positions_folder} does not exist.')
     position_files = natural_sort(glob(f'{positions_folder}/{DEM_files_prefix}*.csv')) # List all positions found with DEM
-    position_files = position_files[DEM_start:DEM_end+1]
+    position_files = position_files[DEM_start:DEM_end+1:DEM_step_increment]
     if looping:
-        position_files = natural_sort(glob(f'{positions_folder}/{DEM_files_prefix}*.csv'))[DEM_start:DEM_end+1] # List all positions found with DEM
+        position_files = natural_sort(glob(f'{positions_folder}/{DEM_files_prefix}*.csv'))[DEM_start:DEM_end+1:DEM_step_increment] # List all positions found with DEM
         transition = looper(position_files[0], position_files[-1], looper_Nr, looper_Nz, looper_method)        
         np.savetxt('transition.txt', transition, fmt='%i') # Save transition in case we want to reapply it
     
@@ -195,24 +197,29 @@ if not discrete_motion:
             nloops = int((first_step-1)//nsteps_to_loop)
             equivalent_step = int((first_step-1)%nsteps_to_loop)+1
 
-        print_with_timestamp(f'\tFirst check if restart positions are in agreement with file: {position_files[equivalent_step]} (loop #{nloops}, equivalent step #{equivalent_step})')
+        print_with_timestamp(f'Read first positions with equivalent step {equivalent_step}')
         positions = pd.read_csv(position_files[equivalent_step])[['x','y','z']]*positions_scale + np.array(positions_translation) # read new positions from DEM file
+
         # Apply looping transition, if needed
         indices = np.arange(len(positions))
         for i in range(nloops): # does not go here if nloops=0
             indices = indices[transition]
         indices = indices[base_reordering]
         positions[['x', 'y', 'z']] = positions.loc[indices][['x', 'y', 'z']].values
+
         if restart_calculation and not different_positions and ((positions[['x', 'y', 'z']] - data[['x', 'y', 'z']]).abs().max()>1e-8).all():
+            print_with_timestamp(f'\tFirst check if restart positions are in agreement with file: {position_files[equivalent_step]} (loop #{nloops}, equivalent step #{equivalent_step})')
             print_with_timestamp((positions[['x', 'y', 'z']] - data[['x', 'y', 'z']]).abs().max())
             raise Exception('First positions are different from the restart positions, check input data, looped, etc.')
         else:
             data = data.iloc[:positions.shape[0]] # cut to the right size when starting
             data[['x', 'y', 'z']] = positions[['x', 'y', 'z']]
             print_with_timestamp('\t\tOK.')
+
         if not restart_calculation:
             data['r'] = r_pebbles # Change radii
     else:
+        print_with_timestamp(f'\tUsing initial positions at file: {position_files[0]}')
         data = pd.read_csv(position_files[0])[['x','y','z']]*positions_scale + np.array(positions_translation) # read new positions from DEM file
         data['r'] = r_pebbles # Change radii
 
@@ -262,6 +269,50 @@ for uni_id, (uni_name, uni) in enumerate(pebbles_dict.items()):
     if ('threshold_type' in uni.keys() and uni['threshold_type']) or 'threshold' in uni.keys():
         threshold_pebbles_dict[uni_name] = pebbles_dict[uni_name]
 
+# Calculate materials volumes
+for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
+    V_per_pebble = 4/3 * np.pi * uni['r_fuel_kernel']**3 * uni['Ntrisos']
+    N = data[f'pebble_type_{uni_id}'].sum()
+    print_with_timestamp(f'Calculated volume for {uni["mat_name"]}: {V_per_pebble:.2E} cm^3 (x{N} pebbles)')
+
+# Set pebble-wise detectors up
+V_pebble = 4/3 * np.pi * r_pebbles**3  # Calculate the volume of the pebble
+Egrids = {}  # Initialize an empty dictionary to store the energy grids for each detector
+
+
+for det_name in detectors: # Iterate through the detectors dictionary and group them based on their energy grids
+    if 'E' in detectors[det_name]:
+        E = tuple(detectors[det_name]['E'])  # Get the energy grid as a tuple
+        print()
+        if E not in Egrids:  # If the energy grid is not in Egrids, create a new entry
+            Egrids[E] = [det_name]
+        else:  # If the energy grid is already in Egrids, append the detector name to the list
+            Egrids[E].append(det_name)
+
+for i, E in enumerate(Egrids): # Write 'ene' lines to the main input file for each unique energy grid
+    with open(main_input_file, 'a') as f:
+        f.write(f'ene E{i} 1 {" ".join(np.array(E).astype(str))}\n')
+
+new_Egrids = {f'E{i}': Egrids[E] for i, E in enumerate(Egrids)} # Create a new dictionary 'new_Egrids' with updated keys (E0, E1, etc.)
+Egrids.clear() # Update the original Egrids dictionary with the new one
+Egrids.update(new_Egrids)
+
+for det_name in detectors: # Loop through the detectors again and write detector information to the main input file
+    s = f'det {det_name} dl {pbed_universe_name} '  # Basic detector information
+    Egrid = [key for key, values in Egrids.items() if det_name in values]  # Find the energy grid corresponding to the detector
+    if len(Egrid) > 0:  # If an energy grid is found, add it to the 'det' line
+        s += f'de {Egrid[0]} '
+    if 'normalized' in detectors[det_name] and detectors[det_name]['normalized']:
+        s += f'dv {V_pebble} '  # Add pebble volume information if the detector is normalized
+    if 'extra_cards' in detectors[det_name]:  # Add any extra cards specified for the detector
+        if isinstance(detectors[det_name]['extra_cards'], str):
+            s += detectors[det_name]['extra_cards']
+        else:
+            s += ' '.join(np.array(detectors[det_name]['extra_cards']).astype(str))
+    s += '\n'
+    with open(main_input_file, 'a') as f:
+        f.write(s)  # Write the detector information to the main input file
+
 # Domain decomposition
 
 if domain_decomposition:
@@ -291,13 +342,13 @@ if not use_decnfy_lib: # remove link to decay/nfy library if not needed
 if thermal_coupling:
     TH_iteration = 0
     TH_step = 0
-    os.system(f'ln -sfn ./OF/constant ./wrk_Serpent/constant')
-    os.system(f'ln -sfn ./OF/{TH_step} ./wrk_Serpent/ifc')
+    os.system(f'ln -sfn ../OF/constant ./wrk_Serpent/constant')
+    os.system(f'ln -sfn ../OF/{TH_step} ./wrk_Serpent/ifc')
+    with open(main_input_file, 'a') as f:
+        f.write(f'\nset relfactor 0"\n') # do not relax powers since it is a dynamic simulation
 
 serpent, serpent_input_files = start_Serpent(os.environ["SERPENT_EXE"], ncores, main_input_file, nnodes, verbosity_mode)
 nplots = count_plots(serpent_input_files) # count number of plot commands in input files
-
-
 
 #%% Time and filling step-dependent list with values if needed
 
@@ -312,6 +363,8 @@ for var in ["Nrows_to_move", "neutrons_per_cycle", "power_normalization_value", 
             step_wise_variables[var] = [step_wise_variables[var]] * Nsteps
     except:
         pass
+    if var in step_wise_variables and len(step_wise_variables[var]) != Nsteps:
+        raise Exception(f'The number of elements in {var} must either be 1 (invariant) or equal to the number of steps {Nsteps}. Here it is {len(step_wise_variables[var])}')
 
 # Process threshold for each pebble type
 for uni_id, (uni_name, uni) in enumerate(threshold_pebbles_dict.items()):
@@ -330,13 +383,13 @@ for uni_id, (uni_name, uni) in enumerate(threshold_pebbles_dict.items()):
 
 
 # Add time steps
-step_wise_variables["time_step"] = [0] # first time step is 0, only transport
-for step in range(1, Nsteps):
+step_wise_variables["time_step"] = []
+for step in range(Nsteps):
     if discrete_motion:
-        step_wise_variables["time_step"].append(step_wise_variables["Nrows_to_move"][step-1] * (time_per_pass/(data.row_id.max() + 1))) # days)
+        step_wise_variables["time_step"].append(step_wise_variables["Nrows_to_move"][step] * (time_per_pass/(data.row_id.max() + 1))) # days)
     else:
-        step_wise_variables["time_step"].append(step_wise_variables["DEM_step_increment"][step-1] * DEM_circulation_step/circulation_rate) # days
-
+        step_wise_variables["time_step"].append(step_wise_variables["DEM_step_increment"][step] * DEM_circulation_step/circulation_rate) # days
+print(step_wise_variables["time_step"])
 # Test if right number of values
 for var in step_wise_variables:
     if len(step_wise_variables[var]) != Nsteps:
@@ -387,9 +440,6 @@ tra['time_in']       = get_transferrable('burn_time', serpent, input_parameter=T
 
 # Set fuel volumes
 for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
-    V_per_pebble = 4/3 * np.pi * uni['r_fuel_kernel']**3 * uni['Ntrisos']
-    N = data[f'pebble_type_{uni_id}'].sum()
-    print_with_timestamp(f'Calculated volume for {uni["mat_name"]}: {V_per_pebble:.2E} cm^3 (x{N} pebbles)')
     Serpent_set_values(f'material_div_{uni["mat_name"]}_volume', np.full(N, V_per_pebble), serpent) # allows overwriting volume definitions in Serpent
 
 # Try to add step-wise variables, if given
@@ -404,7 +454,7 @@ tra['neutrons_per_cycle'] = get_transferrable("neutrons_per_cycle", serpent, inp
 #### Serpent => Python #####
 tra['keff']          = get_transferrable('ANA_KEFF', serpent) # Monitor multiplication factor
 tra['keff_rel_unc']          = get_transferrable('ANA_KEFF_rel_unc', serpent) # Monitor multiplication factor
-tra['wait'] = get_transferrable('sss_ov_memsize', serpent) # Just one command to make Python wait for Serpent to finish the rest of the commands
+tra['wait'] = get_transferrable('memsize', serpent) # Just one command to make Python wait for Serpent to finish the rest of the commands
 
 # Monitor extra fields
 for field in ['fima', 'decayheat', 'activity', 'burnup']:
@@ -416,9 +466,13 @@ for name in inventory_names:
     tra[name] = {mat_name: get_transferrable(f'material_div_{mat_name}_{name}', serpent) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
 
 # Monitor tallies
-for name in detector_names:
+for name in detectors:
    tra[name] = get_transferrable(f'DET_{name}', serpent) # Tally value
    tra[f'{name}_rel_unc'] = get_transferrable(f'DET_{name}_rel_unc', serpent) # Tally uncertainty
+
+# Monitor ifc
+if thermal_coupling:
+    tra['Q'] = get_transferrable(f'INTERFACE_POWER_sss_of_{TH["fuel_mat"]}_power', serpent) # Fuel power
 
 #%% Create pebble bed object, which will be filled with data at each step
 
@@ -427,7 +481,6 @@ pbed = Pebble_bed(verbose=False)
 
 pbed.read_dataframe(pd.DataFrame(data[['x','y','z','r']], columns=[*'xyzr'])) # Read first positions
 pbed.data['id'] = data['id']
-
 pbed.data['isactive'] = False
 for uni_id, (uni_name, uni) in enumerate(pebbles_dict.items()):
     pbed.data[f'pebble_type_{uni_id}'] = (data['uni'] == uni_name)
@@ -461,7 +514,7 @@ pbed.data['pass_nsteps'] = 0
 
 
 # Initialize columns for each detector and create time-integrated parameters (fluences, energy)
-for name in detector_names:
+for name in detectors:
     pbed.data[name] = np.nan
     pbed.data[f'{name}_rel_unc'] = np.nan
     for subname in [f'integrated_{name}', f'integrated_{name}_unc', f'integrated_{name}_rel_unc', f'pass_integrated_{name}', f'pass_integrated_{name}_unc', f'pass_integrated_{name}_rel_unc']:
@@ -505,19 +558,19 @@ for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
 #%% Initialize secondary information to get at each step
 
 # Keep only relevant information from before
-fields_to_carry = ['id', 'x', 'y', 'z', 'r', 'r_dist', 'row_id', 'col_id', 'uni', 'mat_name', 'isactive', 'initial', 'insertion_step', 'avg_r_dist', 'passes', 'recirculated', 'discarded', 'residence_time'] + [f'pebble_type_{uni_id}' for uni_id in range(len(pebbles_dict))] + extra_fields + list(np.array([[name, f'{name}_rel_unc', f'{name}_unc', f'integrated_{name}', f'integrated_{name}_rel_unc', f'integrated_{name}_unc'] for name in detector_names]).flatten()) + pass_dependent_names + list(inventory_names)
+fields_to_carry = ['id', 'x', 'y', 'z', 'r', 'r_dist', 'row_id', 'col_id', 'uni', 'mat_name', 'isactive', 'initial', 'insertion_step', 'avg_r_dist', 'passes', 'recirculated', 'discarded', 'residence_time'] + [f'pebble_type_{uni_id}' for uni_id in range(len(pebbles_dict))] + extra_fields + list(np.array([[name, f'{name}_rel_unc', f'{name}_unc', f'integrated_{name}', f'integrated_{name}_rel_unc', f'integrated_{name}_unc'] for name in detectors]).flatten()) + pass_dependent_names + list(inventory_names)
 if domain_decomposition:
     fields_to_carry.append('domain_id')
 pbed.data = pbed.data[[field for field in fields_to_carry if field in pbed.data.columns]]
 
 pbed.cycle_hist = pd.DataFrame(columns=['time', 'passes', 'recirculated', 'discarded', 'keff', 'keff_relative_uncertainty', 'keff_absolute_uncertainty']+list(step_wise_variables.keys())) # keff at each time step
-pbed.discarded_data =  pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated','discarded', 'pass_agg_r_dist']+[f'pebble_type_{uni_id}' for uni_id in range(len(pebbles_dict))]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names], errors='ignore'))+pass_dependent_names+['discard_step']) # Discarded pebbles data
+pbed.discarded_data =  pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated','discarded', 'pass_agg_r_dist']+[f'pebble_type_{uni_id}' for uni_id in range(len(pebbles_dict))]+list(detectors)+[f'{name}_rel_unc' for name in detectors], errors='ignore'))+pass_dependent_names+['discard_step']) # Discarded pebbles data
 pbed.discarded_data = pbed.discarded_data.drop(columns='uni', errors='ignore')
-# pbed.discharged_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{uni_id}' for i in range(len(pebbles_dict))]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names], errors='ignore'))) # Discharged pebbles data
-pbed.discharged_fuel_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{uni_id}' for uni_id in range(len(pebbles_dict))]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names], errors='ignore'))) # Discharged pebbles data, only fuel pebbles
+# pbed.discharged_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{uni_id}' for i in range(len(pebbles_dict))]+list(detectors)+[f'{name}_rel_unc' for name in detectors], errors='ignore'))) # Discharged pebbles data
+pbed.discharged_fuel_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{uni_id}' for uni_id in range(len(pebbles_dict))]+list(detectors)+[f'{name}_rel_unc' for name in detectors], errors='ignore'))) # Discharged pebbles data, only fuel pebbles
 
-# pbed.reinserted_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{uni_id}' for i in range(len(pebbles_dict))]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names], errors='ignore'))) # Re-inserted pebbles data
-pbed.reinserted_fuel_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{uni_id}' for uni_id in range(len(pebbles_dict))]+list(detector_names)+[f'{name}_rel_unc' for name in detector_names], errors='ignore'))) # Re-inserted pebbles data, only fuel pebbles
+# pbed.reinserted_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{uni_id}' for i in range(len(pebbles_dict))]+list(detectors)+[f'{name}_rel_unc' for name in detectors], errors='ignore'))) # Re-inserted pebbles data
+pbed.reinserted_fuel_data = pd.DataFrame(columns=list(pbed.data.columns.drop(['x','y','z','r_dist','azim_angle','isactive','recirculated', 'pass_agg_r_dist']+[f'pebble_type_{uni_id}' for uni_id in range(len(pebbles_dict))]+list(detectors)+[f'{name}_rel_unc' for name in detectors], errors='ignore'))) # Re-inserted pebbles data, only fuel pebbles
 
 print_with_timestamp('Waiting for Serpent...')
 Serpent_get_values(tra['wait'])
@@ -546,7 +599,7 @@ for step in range(first_step, Nsteps):
     if step == first_step:
         time_step = 0
     else:
-        time_step = step_wise_variables["time_step"][step]
+        time_step = step_wise_variables["time_step"][step-1]
     next_time = curr_time + time_step*DAYS
     Npasses = next_time / (time_per_pass*DAYS)
     pbed.cycle_hist.loc[step, 'time'] = next_time/DAYS
@@ -756,7 +809,7 @@ for step in range(first_step, Nsteps):
                 Serpent_set_values(tra['burnup_in'][getdict(active_pebbles_dict, 'mat_name')[uni_id]], burnup_vec.astype(float))
 
             # Reset integrated tallies to 0
-            for name in detector_names:
+            for name in detectors:
                 pbed.data.loc[pbed.data['discarded'], f'integrated_{name}'] = 0.0
                 pbed.data.loc[pbed.data['discarded'], f'integrated_{name}_unc'] = 0.0
 
@@ -801,12 +854,21 @@ for step in range(first_step, Nsteps):
                 while running_thermal:
                     print_with_timestamp(f'\t\tSubstep #{TH_substep+1} (TH time = {TH_step}):')
                     print_with_timestamp(f'\t\t - Running transport...')
-                    os.system(f'ln -sfn ../OF/{TH_step} ifc')
+                    os.system(f'ln -sfn ../OF/{TH_step} ./wrk_Serpent/ifc')
                     serpent.solve()
                     keff = Serpent_get_values(tra['keff'])[0]
                     keff_rel_unc = Serpent_get_values(tra['keff_rel_unc'])[0]
                     keff_unc = keff*keff_rel_unc
-                    TH['fields_values'] = {'keff':keff}
+                    Q = Serpent_get_values(tra['Q'])
+                    TH['fields_values'] = {'keff':keff, 'Q':Q}
+                    to_rename = [filename for filename in os.listdir(f'./OF/{TH_step}/fluidRegion/') if re.match(r'^powerDensityNeutronics\d+$', filename)]
+                    if len(to_rename) == 0:
+                        pass
+                    elif len(to_rename) == 1:
+                        shutil.move(f'./OF/{TH_step}/fluidRegion/{to_rename[0]}', f'./OF/{TH_step}/fluidRegion/powerDensityNeutronics')
+                    else:
+                        raise Exception(f'Too many thermal files to rename: {to_rename}')
+
                     print_with_timestamp(f'\t\t\tDone. keff = {keff:.5f} +/- {keff_unc*1e5:.0f} pcm')
                     print_with_timestamp(f'\t\t - Running thermal-hydraulics...')
                     execute_GeN_Foam(TH_step, TH_iteration, TH_substep, TH)
@@ -817,18 +879,14 @@ for step in range(first_step, Nsteps):
                     points_to_cell_num = cKDTree(TH['cells_centers']).query(pbed.data[['x','y','z']])[1]
 
                     for field in TH['fields_of_interest']:
-                        TH['fields_values'][field] = read_GeN_Foam(field, TH_step, './OF', 'fluidRegion')
+                        if field != 'Q':
+                            TH['fields_values'][field] = read_GeN_Foam(field, TH_step, './OF', 'fluidRegion')
                         pbed.data[field] = TH['fields_values'][field][points_to_cell_num]
                         print_with_timestamp(f"\t\t\t{field} (avg +/- std / min, max) = {TH['fields_values'][field].mean():.5E} +/- {TH['fields_values'][field].std():.5E} / {TH['fields_values'][field].min():.5E}, {TH['fields_values'][field].max():.5E}")
                     print_with_timestamp(f'\t\t\tDone.')
 
-                    if 'max_steps' in TH and TH_substep >= TH['max_steps']:
-                        print_with_timestamp('\t\tMaximum iterations reached.')
-                        running_thermal = False
-                    elif 'convergence_criteria' in TH and 'old_fields_values' in TH:
-                        print(TH['old_fields_values'])
-                        print(TH['fields_values'])
-                        converged = True
+                    if 'convergence_criteria' in TH and 'old_fields_values' in TH:
+                        running_thermal = 0
                         print_with_timestamp('\t\tConvergence test:')
                         for field in TH['convergence_criteria']:
                             if field=='keff':
@@ -840,10 +898,13 @@ for step in range(first_step, Nsteps):
                             if rel_dif <= TH['convergence_criteria'][field]:
                                 print_with_timestamp(f"\t\t\t Satisfied.")
                             else:
-                                converged = False
+                                running_thermal += 1
                                 print_with_timestamp(f"\t\t\t Not satisfied.")
-                        if converged:
-                            running_thermal = False
+                        running_thermal = (running_thermal > 0)
+                    if 'max_steps' in TH and TH_substep >= TH['max_steps']:
+                        print_with_timestamp('\t\tMaximum iterations reached.')
+                        running_thermal = False
+
                     TH['old_fields_values'] = TH['fields_values'].copy()
                 TH_iteration += 1
             print_with_timestamp('\tEnd of thermal coupling')
@@ -885,7 +946,6 @@ for step in range(first_step, Nsteps):
                                 threshold_delta = -min(diff_ratio * uni['learning_rate'], uni['max_threshold_delta'])
 
                             uni['current_threshold'] += threshold_delta # Update the threshold for the next iteration
-                            step_wise_variables[f"threshold_{uni['mat_name']}"][step] = uni['current_threshold'] # update in the cycle info
                             print_with_timestamp(f"\t\tNew threshold on {uni['threshold_type']}: {uni['current_threshold']:.4E} (diff={threshold_delta:.4E})")
                             if abs(threshold_delta) != uni['max_threshold_delta']:
                                 uni['learning_rate'] *= uni['decay_rate']  # less and less sensitive with number of steps
@@ -893,6 +953,7 @@ for step in range(first_step, Nsteps):
                             print_with_timestamp(f"\tAdjusting threshold in {uni['update_every'] - step%uni['update_every']} steps")
                     else:
                         print_with_timestamp(f"\tNot adjusting yet")
+                    step_wise_variables[f"threshold_{uni['mat_name']}"][step] = uni['current_threshold'] # update in the cycle info
 
     #### Monitor quantities ####
     print_with_timestamp('\tExtracting fields, detectors and inventory')
@@ -925,9 +986,9 @@ for step in range(first_step, Nsteps):
             print_with_timestamp('\t\t\tDone.')
 
         # Extract detector values and uncertainties and calculate integrated values
-        if len(detector_names)>0:
-            print_with_timestamp('\t\tExtracting detector fields:' + ', '.join(detector_names))
-            for name in list(detector_names):
+        if len(detectors)>0:
+            print_with_timestamp('\t\tExtracting detector fields:' + ', '.join(detectors))
+            for name in list(detectors):
                 # Tallies
                 pbed.data[name] = Serpent_get_values(tra[name])
                 pbed.data[f'{name}_rel_unc'] =  Serpent_get_values(tra[f'{name}_rel_unc'])
@@ -954,6 +1015,7 @@ for step in range(first_step, Nsteps):
 
     #### Plots ###
     if plotting:
+        plt.close('all')
         print_with_timestamp('\tPlotting')
 
         # Plot latest geometry and save it to folder
@@ -964,11 +1026,11 @@ for step in range(first_step, Nsteps):
         base_fields = ['id', 'recirculated', 'discarded', 'insertion_step', 'isactive'] + [f'pebble_type_{uni_id}' for uni_id in range(len(pebbles_dict))]
         if domain_decomposition:
             base_fields.append('domain_id')
-        detectors_fields = list(np.array([[name, f'{name}_rel_unc', f'integrated_{name}', f'pass_integrated_{name}'] for name in detector_names]).flatten())
+        detectors_fields = list(np.array([[name, f'{name}_rel_unc', f'integrated_{name}', f'pass_integrated_{name}'] for name in detectors]).flatten())
         cumulative_fields = ['residence_time', 'passes', 'avg_r_dist'] 
         if transport:
-            cumulative_fields += [f'integrated_{name}' for name in detector_names]
-        pass_fields = ['pass_residence_time', 'pass_agg_r_dist', 'pass_avg_r_dist'] + [f'pass_integrated_{name}' for name in detector_names]
+            cumulative_fields += [f'integrated_{name}' for name in detectors]
+        pass_fields = ['pass_residence_time', 'pass_agg_r_dist', 'pass_avg_r_dist'] + [f'pass_integrated_{name}' for name in detectors]
         for field in ['burnup', 'fima']:
             if field in extra_fields:
                 cumulative_fields.append(field)

@@ -1,0 +1,37 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2.2.1                                 |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+
+FoamFile
+{
+    version         2.0;
+    format          ascii;
+    class           dictionary;
+    location	    "constant";
+    object          nuclearData;
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+model 		linearElasticThermoMechanics;	//only model available now
+
+// constants needed to calculate deformation of fuel, control rods AND structure 
+// (1D expansion for fuel and CR, displacement-based solver for structures)
+
+planeStress     	no;
+linkedFuel      	false; 		// true if there is contact between fuel and 
+								// cladding (expansion driven by cladding)
+fuelOrientation   	(0 0 1); 
+TStructRef			668; 		//ref temperature for structures
+
+zones
+(
+
+);
+
+
+// ************************************************************************* //

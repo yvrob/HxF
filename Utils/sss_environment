@@ -29,6 +29,16 @@ else
 fi
 unset __conda_setup
 
+# Check if an argument was provided
+if [ $# -eq 0 ]; then
+    echo "No conda environment given, please use a conda environment name as an argument when calling the script."
+    echo "Possible conda environments:"
+    conda env list
+    echo 'Syntax: "source /<path>/sss_environment <conda_name>"'
+    echo "ERROR"
+    return 1
+fi
+
 # Activate Conda environment
 echo "Activating Conda environment..."
 conda deactivate

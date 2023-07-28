@@ -2,7 +2,6 @@ plot 1 2000 2718
 %plot 2 2000 2718
 %plot 3 2000 2000
 
-
 %%%%%%%%%%%%%% Pebble bed %%%%%%%%%%%%%%
 
 %%---surf for triso inside fuel pebbles (spheres)
@@ -21,13 +20,13 @@ cell c_core_fueling geom FLiBeInC -s_core_fueling_out
 
 %%%%%%%%%%%%%% core_cyl %%%%%%%%%%%%%%
 
-surf s_core_cyl_out cyl 0 0 120 104.848 414.318
+surf s_core_cyl_out cyl 0 0 120 104.848 384.318
 
 cell c_core_cyl geom FLiBeInC -s_core_cyl_out
 
 %%%%%%%%%%%%%% core_defueling %%%%%%%%%%%%%%
 
-surf s_core_defueling_out cyl 0 0 25 414.318 519.166
+surf s_core_defueling_out cyl 0 0 25 384.318 489.166
 
 cell c_core_defueling geom FLiBeInC -s_core_defueling_out
 
@@ -41,41 +40,41 @@ cell c_bottom_refl geom reflectorB -s_bottom_refl_out s_bottom_refl_in
 
 %%%%%%%%%%%%%% top_refl %%%%%%%%%%%%%%
 
-surf s_top_refl_in cyl 0 0 25 469.166 519.166
+surf s_top_refl_in cyl 0 0 25 439.166 489.166
 
-surf s_top_refl_out cyl 0 0 120 469.166 519.166
+surf s_top_refl_out cyl 0 0 120 439.166 489.166
 
 cell c_top_refl geom reflectorT -s_top_refl_out s_top_refl_in
 
 %%%%%%%%%%%%%% side_refl %%%%%%%%%%%%%%
 
-surf s_side_refl_in cyl 0 0 120 0 519.166
+surf s_side_refl_in cyl 0 0 120 0 489.166
 
-surf s_side_refl_out cyl 0 0 180 0 519.166
+surf s_side_refl_out cyl 0 0 180 0 489.166
 
 cell c_side_refl geom reflectorS -s_side_refl_out s_side_refl_in
 
 %%%%%%%%%%%%%% CB %%%%%%%%%%%%%%
 
-surf s_CB_in cyl 0 0 180 0 519.166
+surf s_CB_in cyl 0 0 180 0 489.166
 
-surf s_CB_out cyl 0 0 182 0 519.166
+surf s_CB_out cyl 0 0 182 0 489.166
 
 cell c_CB geom CBSS316H -s_CB_out s_CB_in
 
 %%%%%%%%%%%%%% DC %%%%%%%%%%%%%%
 
-surf s_DC_in cyl 0 0 182 0 519.166
+surf s_DC_in cyl 0 0 182 0 489.166
 
-surf s_DC_out cyl 0 0 187 0 519.166
+surf s_DC_out cyl 0 0 187 0 489.166
 
 cell c_DC geom FLiBe -s_DC_out s_DC_in
 
 %%%%%%%%%%%%%% RV %%%%%%%%%%%%%%
 
-surf s_RV_in cyl 0 0 187 0 519.166
+surf s_RV_in cyl 0 0 187 0 489.166
 
-surf s_RV_out cyl 0 0 191 0 519.166
+surf s_RV_out cyl 0 0 191 0 489.166
 
 cell c_RV geom RVSS316H -s_RV_out s_RV_in
 
@@ -87,15 +86,12 @@ cell c_bot_cone_core geom FLiBeInC -sc_bot_cone -sc_bot_out sc_bot_in
 cell c_bot_cone_refl geom reflectorB -sc_bot_out sc_bot_cone
 
 %%%%%%%%%%%%%% Top cone %%%%%%%%%%%%%%
-surf sc_top_cone cone 0 0 414.318 120 69.2817
-surf sc_top_in cyl 0 0 25 414.318 469.166
-surf sc_top_out cyl 0 0 120 414.318 469.166
+surf sc_top_cone cone 0 0 384.318 120 69.2817
+surf sc_top_in cyl 0 0 25 384.318 439.166
+surf sc_top_out cyl 0 0 120 384.318 439.166
 cell c_top_cone_core geom FLiBeInC -sc_top_cone -sc_top_out sc_top_in
 cell c_top_cone_refl geom reflectorB -sc_top_out sc_top_cone
 
 %%%%%%%%%%%%%% Outside %%%%%%%%%%%%%%
-surf s_out cyl 0 0 191 0 519.166
+surf s_out cyl 0 0 191 0 489.166
 cell c_out 0 outside s_out
-
-
-

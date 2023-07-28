@@ -28,20 +28,22 @@ r_pebbles = 2 # cm
 
 # Others
 pbed_universe_name = 'u_pb'
-detector_names = [] #'flux_pebbles_thermal', 'flux_pebbles_fast', 'power_pebbles']
+detectors = {'flux_pebbles_thermal':{'E':[1e-11, 1.86e-6], 'normalized':True},
+             'flux_pebbles_fast':{'E':[0.1, 20], 'normalized':True},
+             'power_pebbles':{'extra_cards':['dr', -8, 'void']}}
 
 #%% Depletion steps
 power_normalization_field = 'power'
 power_normalization_value = 3e6 # W
 Nsteps = 1000
-neutrons_per_cycle = 10000
+neutrons_per_cycle = 100 #00
 decay_step = 0 # days
 
 #%% Burnup cycle
 pebbles_dict = {'u_fuel_pebble':{'mat_name':'fuel', 'pebbles_frac':1, 'r_fuel_kernel':0.02125, 'Ntrisos':9022, 
-                'threshold_type':'burnup', 'threshold_dir':+1, 'threshold':'adjustable', 'threshold_ini':100,
+                'threshold_type':'burnup', 'threshold_dir':+1, 'threshold':'adjustable', 'threshold_ini':120,
                 'target':'keff', 'start_search':0.04, 'target_value':1.00,
-                'max_threshold_delta':2, 'learning_rate':50, 'decay_rate':0.99, 'update_every':3}}
+                'max_threshold_delta':5, 'learning_rate':200, 'decay_rate':0.99, 'update_every':1}}
 
 #%% Motion
 motion_direction = +1
@@ -53,8 +55,8 @@ if discrete_motion:
     time_per_pass = 100 # days
 
 #%% Outputing
-output_folder_name = 'small_PBR' # Name of the output folder
-verbosity_mode = 0
+output_folder_name = 'small_PBR_test_det' # Name of the output folder
+verbosity_mode = 3
 inventory_names = [] #'922350', '922360', '922380', '942390', '942380', '942400', '942410', '942420', '952410', '952421', '551370', '541350', '531310', '380900']
 
 read_first_compositions=False
@@ -78,7 +80,7 @@ if saving:
 
 if plotting:
     plot_base = True
-    plot_detectors = False
+    plot_detectors = True
     plot_inventory = False
     plot_keff = True
     plot_cumulative = True

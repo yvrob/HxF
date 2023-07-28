@@ -1,0 +1,180 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  6
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      fvSolution;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+solvers
+{
+    p_rgh
+    {
+        solver          GAMG;
+        smoother        DIC;
+        tolerance       1e-6;
+        relTol          0;
+    }
+
+    p_rghFinal
+    {
+        $p_rgh;
+        relTol          0;
+    }
+
+    "e.*"
+    {
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        tolerance       1e-6;
+        relTol          0;
+        minIter         1;
+    }
+
+    "h.*"
+    {
+        solver          smoothSolver;
+        smoother        symGaussSeidel;
+        tolerance       1e-6;
+        relTol          0;
+        minIter         1;
+    }
+
+    ".*"
+    {
+        solver          PBiCGStab;
+        preconditioner  diagonal;
+        tolerance       1e-06;
+        relTol          0.001;
+    }
+
+    //- "Solver" dictionary of the phase fraction equations. The employed
+    //  algorithm is MULES. This dict serves to specify options for subcycling.
+    //  Subcycling consists in solving a fully explicit equation (except for
+    //  the time derivative term, which is hardcoded to be forward-Euler) for
+    //  N times with a time step reduced by a factor N. This is useful for
+    //  advection problems (such as the phase fraction equations, i.e. the 
+    //  continuity equations) that might have strong Courant limitations, such
+    //  as the phase fraction equations.
+    alpha
+    {
+        //- If true, the number of times the phase fraction equations are
+        //  are solved is determined by the Co. In particular, the number
+        //  of subCycles is set to ceil(Co/alphaMaxCo) with Co being the
+        //  current global courant number.
+        adjustSubCycles     true;
+        
+        //- Maximum subCycle Courant
+        alphaMaxCo          0.20;
+
+        //- If provided, limits the maximum amount of subCycles that can be
+        //  performed if adjustSubCycles is true
+        //maxSubCycles M; 
+
+        //- Only used if adjustSubCycles is false. Defaults to 1.
+        //nSubCycles   N; 
+    }
+}
+
+PIMPLE
+{
+    nCorrectors      3;
+    nNonOrthogonalCorrectors 0;
+
+    //- The following feature applies only to the twoPhase solver and is
+    //  compatible with all momentumModes (see below)
+    //- Partial elimination improves convergence if the drag coefficient
+    //  between the two fluid phases is sufficiently high. It never hurts
+    //  to use it. The possibe modes of this keyword are:
+    //  -   none, no partial elimination;
+    //  -   explicit, explicit adjustement based on partial elimination,
+    //      this is what is found on currently available multiphase solvers
+    //  -   implicit, "true" partial elimination. This was recently implemented
+    //      by the authors. It grants significantly faster convergence rates
+    //      at the cost of less linear solver pressure iterations when compared
+    //      to the explicit variant
+    partialEliminationMode      implicit;
+
+    //- The following feature applies to both the onePhase and twoPhase solvers
+    //  and defaults to cellCentered. It has an effect with all 
+    //  partialEliminationModes
+    //- This option controls how the pressure equation fluxes due to 
+    //  momentum equation terms are computed. The possible modes are:
+    //  -   cellCentered, the traditional OpenFOAM way. This algorithm is
+    //      know, however, to induce velocity oscillations in the main flow
+    //      direction across porous body interfaces (i.e. sharp porosity 
+    //      changes);
+    //  -   faceCentered, an experimental algorithm implemented from
+    //      some multiphase solvers (e.g. reactingMultiphaseEulerFoam), with 
+    //      minor improvements. All the terms that end in the pressure equation
+    //      are evaulated at the faces and the velocity is reconstructed from
+    //      the fluxes. The time derivative is hard-coded to Euler forward.
+    //      This algorithm appears to be marginally more diffusive than the
+    //      cellCentered one, yet it grants significant advantages in terms
+    //      of velocity oscillation reduction (completely in onePhase,
+    //      partially or completely in twoPhase depending on the 
+    //      oscillationLimiterFraction) and enhanced phase coupling. Currently
+    //      recommended for most applications;
+    //  -   cellCenteredFaceReconstruction, a blending of the cellCentered
+    //      equation construction method and the faceCentered velocity 
+    //      reconstruction method. Mostly for testing purposed, its use is
+    //      currently highly discouraged and the implementation is not yet
+    //      verified;
+    momentumMode                faceCentered;
+
+    //- The following feature only has an effect in the twoPhase solver and 
+    //  only when using the faceCentered momentum algorithm.
+    //- Experimental feature by the authors. This coefficient blends two
+    //  different ways of reconstructing the velocity field after the pressure
+    //  equation solution. If set to 1, the velocity is reconstructed so to
+    //  take into account differences between cell-center porosities and 
+    //  face porosities, so that the resulting velocity field is completely
+    //  free of both oscillations (if not using faceCentered) or smearing 
+    //  (if using face momentum) at porous interfaces. If set to 0, it 
+    //  does nothing. If set in between, it blends the two velocity solutions
+    //  together, reducing oscillations/smearing but eliminating them. The
+    //  issue with always having this set to 1 is that it was noticed that
+    //  while oscillations along the main flow direction were eliminated, in
+    //  certain circumstances (e.g. changes in fluid-structure drag coeff) it
+    //  could acutally lead to velocity oscillations in the plane perpendicular
+    //  to the main flow direction. Fairly ironic. Experiment for yourself and
+    //  see what works
+    oscillationLimiterFraction 0;
+}
+
+relaxationFactors
+{
+    equations
+    {
+        ".*"            1;
+    }
+
+    //- The two most important relaxation factors for explicitly coupled
+    //  two-phase flows with phaseChange
+    fields
+    {
+        //- Under-relaxation of the mass transfer term
+        "massTransfer"              0.25;
+
+        //- Under-relaxation of the interfacial temperature between the fluids.
+        //  This only has an effect if the employed saturationModel in
+        //  phaseProperties is not constant (e.g. BrowningPotter). In
+        //  particular, this is required as rapid changes in pressure during 
+        //  boiling will more often than not induce sharp changes in the
+        //  interfacialTemperature, resulting in massive changes in the mass
+        //  transfer term 
+        "interfacialTemperature"    0.25;
+    }
+}
+
+
+// ************************************************************************* //

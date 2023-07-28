@@ -1,0 +1,480 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+    | =========                 |                                                 |
+    | \      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+    |  \    /   O peration     | Version:  4.x                                   |
+    |   \  /    A nd           | Web:      www.OpenFOAM.org                      |
+    |    \/     M anipulation  |                                                 |
+    \*---------------------------------------------------------------------------*/
+    FoamFile
+    {
+        version     2.0;
+        format      ascii;
+        class       dictionary;
+        object      topoSetDict;
+    }
+    // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+    actions
+    (
+// // Radial 0, Axial 0
+//     {
+//         type        cellSet;
+//         name        set_r0ax0;
+//         action      new;
+//         source      cylinderToCell;
+//         sourceInfo
+//         {
+//             p1 (0 0 0.000000E+00);
+//             p2 (0 0 6.200000E-01);
+//             innerRadius 0.000000E+00;
+//             outerRadius 4.000000E-01;
+//         }
+//     }
+
+//     {
+//         name        zone_r0ax0;
+//         type        cellZoneSet;
+//         action      new;
+//         source      setToCellZone;
+//         sourceInfo
+//         {
+//             set         set_r0ax0;
+//         }
+//     }
+
+//     // ********************************************************* //
+
+//     // Radial 0, Axial 1
+//     {
+//         type        cellSet;
+//         name        set_r0ax1;
+//         action      new;
+//         source      cylinderToCell;
+//         sourceInfo
+//         {
+//             p1 (0 0 6.200000E-01);
+//             p2 (0 0 1.240000E+00);
+//             innerRadius 0.000000E+00;
+//             outerRadius 4.000000E-01;
+//         }
+//     }
+
+//     {
+//         name        zone_r0ax1;
+//         type        cellZoneSet;
+//         action      new;
+//         source      setToCellZone;
+//         sourceInfo
+//         {
+//             set         set_r0ax1;
+//         }
+//     }
+
+//     // ********************************************************* //
+
+//     // Radial 0, Axial 2
+//     {
+//         type        cellSet;
+//         name        set_r0ax2;
+//         action      new;
+//         source      cylinderToCell;
+//         sourceInfo
+//         {
+//             p1 (0 0 1.240000E+00);
+//             p2 (0 0 1.860000E+00);
+//             innerRadius 0.000000E+00;
+//             outerRadius 4.000000E-01;
+//         }
+//     }
+
+//     {
+//         name        zone_r0ax2;
+//         type        cellZoneSet;
+//         action      new;
+//         source      setToCellZone;
+//         sourceInfo
+//         {
+//             set         set_r0ax2;
+//         }
+//     }
+
+//     // ********************************************************* //
+
+//     // Radial 0, Axial 3
+//     {
+//         type        cellSet;
+//         name        set_r0ax3;
+//         action      new;
+//         source      cylinderToCell;
+//         sourceInfo
+//         {
+//             p1 (0 0 1.860000E+00);
+//             p2 (0 0 2.480000E+00);
+//             innerRadius 0.000000E+00;
+//             outerRadius 4.000000E-01;
+//         }
+//     }
+
+//     {
+//         name        zone_r0ax3;
+//         type        cellZoneSet;
+//         action      new;
+//         source      setToCellZone;
+//         sourceInfo
+//         {
+//             set         set_r0ax3;
+//         }
+//     }
+
+//     // ********************************************************* //
+
+//     // Radial 0, Axial 4
+//     {
+//         type        cellSet;
+//         name        set_r0ax4;
+//         action      new;
+//         source      cylinderToCell;
+//         sourceInfo
+//         {
+//             p1 (0 0 2.480000E+00);
+//             p2 (0 0 3.100000E+00);
+//             innerRadius 0.000000E+00;
+//             outerRadius 4.000000E-01;
+//         }
+//     }
+
+//     {
+//         name        zone_r0ax4;
+//         type        cellZoneSet;
+//         action      new;
+//         source      setToCellZone;
+//         sourceInfo
+//         {
+//             set         set_r0ax4;
+//         }
+//     }
+
+//     // ********************************************************* //
+
+//     // Radial 1, Axial 0
+//     {
+//         type        cellSet;
+//         name        set_r1ax0;
+//         action      new;
+//         source      cylinderToCell;
+//         sourceInfo
+//         {
+//             p1 (0 0 0.000000E+00);
+//             p2 (0 0 6.200000E-01);
+//             innerRadius 4.000000E-01;
+//             outerRadius 8.000000E-01;
+//         }
+//     }
+
+//     {
+//         name        zone_r1ax0;
+//         type        cellZoneSet;
+//         action      new;
+//         source      setToCellZone;
+//         sourceInfo
+//         {
+//             set         set_r1ax0;
+//         }
+//     }
+
+//     // ********************************************************* //
+
+//     // Radial 1, Axial 1
+//     {
+//         type        cellSet;
+//         name        set_r1ax1;
+//         action      new;
+//         source      cylinderToCell;
+//         sourceInfo
+//         {
+//             p1 (0 0 6.200000E-01);
+//             p2 (0 0 1.240000E+00);
+//             innerRadius 4.000000E-01;
+//             outerRadius 8.000000E-01;
+//         }
+//     }
+
+//     {
+//         name        zone_r1ax1;
+//         type        cellZoneSet;
+//         action      new;
+//         source      setToCellZone;
+//         sourceInfo
+//         {
+//             set         set_r1ax1;
+//         }
+//     }
+
+//     // ********************************************************* //
+
+//     // Radial 1, Axial 2
+//     {
+//         type        cellSet;
+//         name        set_r1ax2;
+//         action      new;
+//         source      cylinderToCell;
+//         sourceInfo
+//         {
+//             p1 (0 0 1.240000E+00);
+//             p2 (0 0 1.860000E+00);
+//             innerRadius 4.000000E-01;
+//             outerRadius 8.000000E-01;
+//         }
+//     }
+
+//     {
+//         name        zone_r1ax2;
+//         type        cellZoneSet;
+//         action      new;
+//         source      setToCellZone;
+//         sourceInfo
+//         {
+//             set         set_r1ax2;
+//         }
+//     }
+
+//     // ********************************************************* //
+
+//     // Radial 1, Axial 3
+//     {
+//         type        cellSet;
+//         name        set_r1ax3;
+//         action      new;
+//         source      cylinderToCell;
+//         sourceInfo
+//         {
+//             p1 (0 0 1.860000E+00);
+//             p2 (0 0 2.480000E+00);
+//             innerRadius 4.000000E-01;
+//             outerRadius 8.000000E-01;
+//         }
+//     }
+
+//     {
+//         name        zone_r1ax3;
+//         type        cellZoneSet;
+//         action      new;
+//         source      setToCellZone;
+//         sourceInfo
+//         {
+//             set         set_r1ax3;
+//         }
+//     }
+
+//     // ********************************************************* //
+
+//     // Radial 1, Axial 4
+//     {
+//         type        cellSet;
+//         name        set_r1ax4;
+//         action      new;
+//         source      cylinderToCell;
+//         sourceInfo
+//         {
+//             p1 (0 0 2.480000E+00);
+//             p2 (0 0 3.100000E+00);
+//             innerRadius 4.000000E-01;
+//             outerRadius 8.000000E-01;
+//         }
+//     }
+
+//     {
+//         name        zone_r1ax4;
+//         type        cellZoneSet;
+//         action      new;
+//         source      setToCellZone;
+//         sourceInfo
+//         {
+//             set         set_r1ax4;
+//         }
+//     }
+
+//     // ********************************************************* //
+
+//     // Radial 2, Axial 0
+//     {
+//         type        cellSet;
+//         name        set_r2ax0;
+//         action      new;
+//         source      cylinderToCell;
+//         sourceInfo
+//         {
+//             p1 (0 0 0.000000E+00);
+//             p2 (0 0 6.200000E-01);
+//             innerRadius 8.000000E-01;
+//             outerRadius 1.200000E+00;
+//         }
+//     }
+
+//     {
+//         name        zone_r2ax0;
+//         type        cellZoneSet;
+//         action      new;
+//         source      setToCellZone;
+//         sourceInfo
+//         {
+//             set         set_r2ax0;
+//         }
+//     }
+
+//     // ********************************************************* //
+
+//     // Radial 2, Axial 1
+//     {
+//         type        cellSet;
+//         name        set_r2ax1;
+//         action      new;
+//         source      cylinderToCell;
+//         sourceInfo
+//         {
+//             p1 (0 0 6.200000E-01);
+//             p2 (0 0 1.240000E+00);
+//             innerRadius 8.000000E-01;
+//             outerRadius 1.200000E+00;
+//         }
+//     }
+
+//     {
+//         name        zone_r2ax1;
+//         type        cellZoneSet;
+//         action      new;
+//         source      setToCellZone;
+//         sourceInfo
+//         {
+//             set         set_r2ax1;
+//         }
+//     }
+
+//     // ********************************************************* //
+
+//     // Radial 2, Axial 2
+//     {
+//         type        cellSet;
+//         name        set_r2ax2;
+//         action      new;
+//         source      cylinderToCell;
+//         sourceInfo
+//         {
+//             p1 (0 0 1.240000E+00);
+//             p2 (0 0 1.860000E+00);
+//             innerRadius 8.000000E-01;
+//             outerRadius 1.200000E+00;
+//         }
+//     }
+
+//     {
+//         name        zone_r2ax2;
+//         type        cellZoneSet;
+//         action      new;
+//         source      setToCellZone;
+//         sourceInfo
+//         {
+//             set         set_r2ax2;
+//         }
+//     }
+
+//     // ********************************************************* //
+
+//     // Radial 2, Axial 3
+//     {
+//         type        cellSet;
+//         name        set_r2ax3;
+//         action      new;
+//         source      cylinderToCell;
+//         sourceInfo
+//         {
+//             p1 (0 0 1.860000E+00);
+//             p2 (0 0 2.480000E+00);
+//             innerRadius 8.000000E-01;
+//             outerRadius 1.200000E+00;
+//         }
+//     }
+
+//     {
+//         name        zone_r2ax3;
+//         type        cellZoneSet;
+//         action      new;
+//         source      setToCellZone;
+//         sourceInfo
+//         {
+//             set         set_r2ax3;
+//         }
+//     }
+
+//     // ********************************************************* //
+
+//     // Radial 2, Axial 4
+//     {
+//         type        cellSet;
+//         name        set_r2ax4;
+//         action      new;
+//         source      cylinderToCell;
+//         sourceInfo
+//         {
+//             p1 (0 0 2.480000E+00);
+//             p2 (0 0 3.100000E+00);
+//             innerRadius 8.000000E-01;
+//             outerRadius 1.200000E+00;
+//         }
+//     }
+
+//     {
+//         name        zone_r2ax4;
+//         type        cellZoneSet;
+//         action      new;
+//         source      setToCellZone;
+//         sourceInfo
+//         {
+//             set         set_r2ax4;
+//         }
+//     }
+
+//     // ********************************************************* //
+
+//     // Radial 2, Axial 4
+//     {
+//         type        cellSet;
+//         name        Core;
+//         action      new;
+//         source      cylinderToCell;
+//         sourceInfo
+//         {
+//             p1 (0 0 0.000000E+00);
+//             p2 (0 0 3.100000E+00);
+//             innerRadius 0.000000E+00;
+//             outerRadius 1.200000E+00;
+//         }
+//     }
+
+//     {
+//         name        Core;
+//         type        cellZoneSet;
+//         action      remove;
+//         source      setToCellZone;
+//         sourceInfo
+//         {
+//             set         Core;
+//         }
+//     }
+
+//     {
+//         type        cellSet;
+//         name        Core;
+//         action      remove;
+//         source      cylinderToCell;
+//         sourceInfo
+//         {
+//             p1 (0 0 0.000000E+00);
+//             p2 (0 0 3.100000E+00);
+//             innerRadius 0.000000E+00;
+//             outerRadius 1.200000E+00;
+//         }
+//     }
+
+    // ********************************************************* //
+
+    );

@@ -59,3 +59,5 @@ different_positions = False
 
 #%% Thermal coupling
 thermal_coupling = False
+
+detectors = {}

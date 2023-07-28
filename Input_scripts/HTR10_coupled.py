@@ -5,8 +5,8 @@
 transport = True
 resolve_first = False
 correct = False
-domain_decomposition = False
-use_decnfy_lib = True
+domain_decomposition = True
+use_decnfy_lib = False
 
 # Thermal_hydraulics
 thermal_coupling = True
@@ -39,7 +39,7 @@ pebbles_dict = {'u_fuel_pebble':{'mat_name':'fuel', 'pebbles_frac':0.57, 'r_fuel
 
 # Others
 pbed_universe_name = 'u_pb'
-detector_names = ['flux_pebbles_thermal', 'flux_pebbles_fast', 'power_pebbles']
+detector_names = [] #'flux_pebbles_thermal', 'flux_pebbles_fast', 'power_pebbles']
 
 #%% Depletion steps
 power_normalization_field = 'power'
@@ -55,9 +55,9 @@ inventory_names = ['551370'] #'10010', '10030', '20040', '30070', '40100', '5010
 
 #%% Thermal-hydraulics
 if thermal_coupling:
-    TH = {'solver': 'GeN-Foam', 'step_size':5, 'max_steps':3, 'nnodes':1, 'time_limit':1, 'positions_scale':100,
-    'fields_of_interest':['powerDensityNeutronics', 'Tfav.nuclearSteadyStatePebble', 'Tmav.nuclearSteadyStatePebble', 'T'],
-    'convergence_criteria':{'powerDensityNeutronics':0.03, 'Tfav.nuclearSteadyStatePebble':0.01, 'Tmav.nuclearSteadyStatePebble':0.01, 'T':0.01, 'keff':30e-5}}
+    TH = {'solver': 'GeN-Foam', 'step_size':5, 'max_steps':3, 'nnodes':2, 'time_limit':1, 'positions_scale':100, 'fuel_mat': 'fuel',
+    'fields_of_interest':['Q', 'Tfav.nuclearSteadyStatePebble', 'Tmav.nuclearSteadyStatePebble', 'T'],
+    'convergence_criteria':{'Q':0.03, 'Tfav.nuclearSteadyStatePebble':0.01, 'Tmav.nuclearSteadyStatePebble':0.01, 'T':0.01, 'keff':30e-5}}
 
 #%% Motion
 
@@ -98,11 +98,15 @@ if domain_decomposition:
 if write_restart:
     restart_write_every = 10
 
+import numpy as np
+base_reordering = np.loadtxt('/global/scratch/users/yvesrobert/HxF_dev/Models/HTR-10_long_det/base_reordering.txt', dtype=int)
+
 #%% Restart read
 if restart_calculation:
     restart_step = 750
     restart_data = '/global/scratch/users/co_nuclear/HTR10_large/core_750.csv'
     restart_binary = '/global/scratch/users/co_nuclear/HTR10_large/input.inp.wrk_750'
+    different_positions = True
 elif read_first_compositions:
     # restart_binary = '/global/scratch/users/clementvayrondelamoureyre/HTR10_large/input.inp.wrk_750'
     # restart_data = '/global/scratch/users/clementvayrondelamoureyre/HTR10_large/core_750.csv'

@@ -1,0 +1,36 @@
+
+/*
+ crossSection dictionary
+ Generatd by serpentToFoamXS
+ 04-Aug-2014
+ From SERPENT results file: esfr_core__res
+*/
+
+/*
+physical delayed neutron fraction and spectrum
+*/
+
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    constant;
+    object      esfr_core__res;
+}
+
+fastNeutrons            true; // if true interpolates cross section with logarithmic temp for fuel (otherwise, square root)
+
+adjustDiscFactors       false;
+
+
+useGivenDiscFactors     false;
+
+energyGroups 1 ;
+
+precGroups 1 ; 
+
+zones
+ (
+
+ );

@@ -1,0 +1,47 @@
+set acelib  "/global/home/groups/co_nuclear/serpent/xsdata/endfb7/sss_endfb7u.xsdata"
+
+% --- Very simple infinite homogeneous geometry for Serpent tutorial
+
+/************************
+ * Material definitions *
+ ************************/
+
+% --- Fuel material (4.0 wt-% enriched uranium), density 10.1 g/cm3
+
+mat fuel     -10.1
+92235.03c    -0.04 
+92238.03c    -0.96
+
+/************************
+ * Geometry definitions *
+ ************************/
+
+% --- Bounding surface for the geometry is an axially infinite square prism
+%     centered at 0.0 0.0 with a half-width of 100 cm
+%     see: http://serpent.vtt.fi/mediawiki/index.php/Surface_types
+
+surf s1 sqc 0.0 0.0 100.0
+
+% --- Cell c1 belongs to the base universe 0, contains the material fuel
+%     and covers everything inside surface s1
+
+cell c1 0 fuel      -s1
+
+% --- Cell c2 belongs to the base universe 0, is defined as an "outside" cell
+%     and covers everything outside surface s1
+
+cell c2 0 outside    s1
+
+% --- Use reflective boundary conditions to make the system infinite
+%     These are applied on the boundary surface of the outside cell
+%     i.e. surface s1
+
+set bc 2
+ 
+/******************
+ * Run parameters *
+ ******************/
+
+% --- Neutron population: 5000 neutrons per cycle, 100 active / 20 inactive cycles
+set gcu -1
+set pop 1000 1 1

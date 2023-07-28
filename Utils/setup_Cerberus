@@ -49,7 +49,7 @@ conda activate $CONDA_ENV_NAME
 # Install packages in new environment
 echo "Installing Python packages..."
 conda install -y pip ipykernel
-pip install --no-cache-dir serpentTools numpy scipy pandas matplotlib mpi4py ipython
+pip install --no-cache-dir serpentTools numpy scipy pandas matplotlib mpi4py ipython seaborn joblib
 
 # Add the conda environment to Jupyter Notebook
 ipython kernel install --user --name=$CONDA_ENV_NAME

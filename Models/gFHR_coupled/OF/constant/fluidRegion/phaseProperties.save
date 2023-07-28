@@ -1,0 +1,123 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  6
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      phaseProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// ------------------------------------------------------------------------- //
+// --- THERMAL-HYDRAULIC TYPE ---------------------------------------------- //
+// ------------------------------------------------------------------------- //
+
+thermalHydraulicsType    "onePhase";
+
+// ------------------------------------------------------------------------- //
+// --- STRUCTURES PROPERTIES ----------------------------------------------- //
+// ------------------------------------------------------------------------- //
+
+structureProperties
+{    
+"Core"
+    {
+        volumeFraction      0.5978255675; // Packing fraction
+        Dh                  0.02690914904; // dp*eps/(1-eps), April Novak's thesis
+
+        powerModel // power production model for the sub-scale structure
+        {
+            type                nuclearSteadyStatePebble;
+            
+            // It can be shown that by averaging a/multiple pebble(s) over
+            // a volume of any shape, the interfacialArea and volumeFraction
+            // of the resulting porous pebble structure are not independent, yet
+            // are tied by volumetricArea = 3*volumeFraction/outerPinRadius
+            powerDensityNeutronics            19.96567386e6; 
+            pebbleSurfaceTemperatureGuess 939;
+
+            pebbleCoreRadius        1.38e-2;
+            pebbleMatrixRadius      1.8e-2;
+            pebbleShellRadius       2e-2;
+            trisoFuelRadius         212.5e-6;
+            trisoBufferRadius       312.5e-6;
+            trisoInnerPyCRadius     352.5e-6;
+            trisoSiCRadius          387.5e-6;
+            trisoOuterPyCRadius     427.5e-6;
+
+            nTRISO                  9022;
+
+            trisoFuelKCoeffs      (3.3073 0 0 0 0 0 0 0);                                   // April novak thesis
+            trisoBufferKCoeffs    (0.50 0 0 0 0 0 0 0);                                     // April novak thesis
+            trisoPyCKCoeffs       (4.00 0 0 0 0 0 0 0);                                     // April novak thesis
+            trisoSiCKCoeffs       (100 0 0 0 0 0 0 0); //(4.015E+02 -5.995E-01 3.898E-04 -9.380E-08 0 0 0 0);   // April Novak thesis fit (R=1.00)
+            pebbleGraphiteKCoeffs (21 0 0 0 0 0 0 0);  //(8.12E+01 -6.14E-02 2.73E-05 -5.18E-09 0 0 0 0);          // April Novak thesis fit (R=1.00)
+
+            trisoFuelDensityCoeffs      (11031.432 -0.17907428 -9.1359257e-05 2.2133072e-09 0 0 0 0);                                   // April novak thesis
+            trisoBufferDensityCoeffs    (1000 0 0 0 0 0 0 0);                                     // April novak thesis
+            trisoPyCDensityCoeffs       (1900 0 0 0 0 0 0 0);                                     // April novak thesis
+            trisoSiCDensityCoeffs       (3216 0 0 0 0 0 0 0); //(4.015E+02 -5.995E-01 3.898E-04 -9.380E-08 0 0 0 0);   // April Novak thesis fit (R=1.00)
+            pebbleGraphiteDensityCoeffs (1632 0 0 0 0 0 0 0);  //(8.12E+01 -6.14E-02 2.73E-05 -5.18E-09 0 0 0 0);          // April Novak thesis fit (R=1.00)
+            coolantDensityCoeffs        (2413 -0.4884 0 0 0 0 0 0);
+
+        }
+    }
+}
+
+// ------------------------------------------------------------------------- //
+// --- REGIME MAP MODEL ---------------------------------------------------- //
+// ------------------------------------------------------------------------- //
+
+regimeMapModel
+{
+    type                none;
+}
+
+// ------------------------------------------------------------------------- //
+// --- REGIME PHYSICS FOR EACH REGIME -------------------------------------- //
+// ------------------------------------------------------------------------- //
+
+physicsModels
+{
+    dragModels
+    {
+        "Core"
+        {
+            DhStruct 1e100; // Kitchen style 6667;
+            type    ReynoldsPower; // Power fit (R=0.9956, Re of 500-3000) from case https://www.kta-gs.de/e/standards/3100/3102_3_engl_1981_03.pdf
+            coeff   8.4505;
+            exp     -0.147;
+        }
+    }
+
+    heatTransferModels
+    {
+        "Core"
+        {
+
+            type    NusseltReynoldsPrandtlPower; // Wakao
+            const   2; //0; //4.82;
+            coeff   1.1; //0.016; //0.0185;
+            expRe   0.6; //0.72; //0.827;
+            expPr   0.33333333333; //0.31; //0.827;
+        }
+    }
+}
+
+// ------------------------------------------------------------------------- //
+// --- MISCELLANEA --------------------------------------------------------- //
+// ------------------------------------------------------------------------- //
+
+pMin                    10000;
+pRefCell                0;
+pRefValue               100000;
+
+// ************************************************************************* //
+

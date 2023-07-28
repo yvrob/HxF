@@ -4,16 +4,17 @@ import time
 import subprocess
 
 def create_sbatch_file(step, substep, current_TH_step, TH_step_size, nnodes, partition, cpus_per_task, qos, account, time_lim=1, solver='GeN-Foam'):
+    ntasks = int(cpus_per_task)*int(nnodes)
     formatted_time = '{:02d}:{:02d}:{:02d}'.format(int(time_lim), int((time_lim * 60) % 60), int((time_lim * 3600) % 60))
     job_name = f'HxF_TH_step{step}.{substep}'
     remove_mpi_cmd = 'unset "${!OMPI_@}" "${!MPI_@}"'
     first_block = ''
     if current_TH_step == 0:
         first_block += f'''source {os.environ["OF_BASHRC"]}
-foamDictionary ./OF/system/decomposeParDict -entry numberOfSubdomains -set {cpus_per_task*nnodes}
-foamDictionary ./OF/system/thermoMechanicalRegion/decomposeParDict -entry numberOfSubdomains -set {cpus_per_task*nnodes}
-foamDictionary ./OF/system/neutroRegion/decomposeParDict -entry numberOfSubdomains -set {cpus_per_task*nnodes}
-foamDictionary ./OF/system/fluidRegion/decomposeParDict -entry numberOfSubdomains -set {cpus_per_task*nnodes}
+foamDictionary ./OF/system/decomposeParDict -entry numberOfSubdomains -set {ntasks}
+foamDictionary ./OF/system/thermoMechanicalRegion/decomposeParDict -entry numberOfSubdomains -set {ntasks}
+foamDictionary ./OF/system/neutroRegion/decomposeParDict -entry numberOfSubdomains -set {ntasks}
+foamDictionary ./OF/system/fluidRegion/decomposeParDict -entry numberOfSubdomains -set {ntasks}
 foamDictionary ./OF/system/controlDict -entry writeInterval -set {TH_step_size}
 decomposePar -case ./OF -allRegions -latestTime -force
 postProcess -func writeCellVolumes -case ./OF -latestTime 
@@ -68,8 +69,7 @@ fi
 
 # Prepare TH case
 
-ln -sfn {current_TH_step} ifc
-mpirun -np {cpus_per_task*nnodes} -oversubscribe --bind-to none {solver} -parallel
+mpirun -np {ntasks} -oversubscribe --bind-to none {solver} -parallel
 wait
 reconstructPar -allRegions -latestTime
 cd ..
@@ -87,6 +87,7 @@ def execute_GeN_Foam(of_step, of_iteration, of_substep, TH):
             break
         time.sleep(5) 
     print(f"Job {job_id} completed.")
+    
 
 def read_GeN_Foam(name_field, folder='0/', path_case='./', region='', dtype=float):
     field_path = f'{path_case}/{folder}/{region}/{name_field}'

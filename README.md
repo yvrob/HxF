@@ -64,7 +64,7 @@ The Python input script provides to the HxF tool all the information it needs ab
 * `looping`: if not using discrete motion, use an optimization-based algorithm which matches the last positions file with the first one to enable infinite number of steps.
 
 <ins>Restart<ins>
-* `read_firt_compositions`: start with already defined composition, stored in one or several binary restart files and a .csv file containing the pebble bed information.
+* `read_first_compositions`: start with already defined composition, stored in one or several binary restart files and a .csv file containing the pebble bed information.
 * `restart_calculation`: restart from a stopped calculation at a given step, stored in one or several binary restart files and a .csv file containing the pebble bed information.
 
 <ins>Output<ins>
