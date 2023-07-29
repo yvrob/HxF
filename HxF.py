@@ -708,7 +708,7 @@ for step in range(first_step, Nsteps):
             threshold_dir = uni['threshold_dir']
             var = f'threshold_{uni["mat_name"]}'
             if callable(uni['threshold']):
-                print_with_timestamp(f'\t\t{uni["mat_name"]} criterion: cumulative probability function of step and values')
+                print_with_timestamp(f'\t\t{uni["mat_name"]} criterion: probability function of step and values')
                 to_discard = (pbed.data[f'pebble_type_{uni_id}']) & (pbed.data['recirculated']) & (np.array([np.random.random() < uni['threshold'](x, step) for x in pbed.data[threshold_type]]))
             else:
                 if isinstance(uni['threshold'], str) and uni['threshold'] == 'adjustable':
