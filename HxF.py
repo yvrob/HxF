@@ -535,7 +535,13 @@ else:
                 pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'passes'] = np.random.randint(1, uni['threshold_ini'] + 1, pbed.data[f'pebble_type_{uni_id}'].sum())
             else:
                 Serpent_set_values(tra[f"{uni['threshold_type']}_{uni['mat_name']}_in"], np.random.uniform(0, uni['threshold_ini'], pbed.data[f'pebble_type_{uni_id}'].sum()))
-        
+        elif callable(uni['threshold']):
+            from scipy.optimize import root_scalar
+            mid_val = root_scalar(lambda x: uni['threshold'](x, 0) - 0.5, bracket=[-1e30, 1e30], method='brentq').root
+            if uni['threshold_type'] == 'passes':
+                pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'passes'] = np.random.randint(1, int(mid_val) + 1, pbed.data[f'pebble_type_{uni_id}'].sum())
+            else:
+                Serpent_set_values(tra[f"{uni['threshold_type']}_{uni['mat_name']}_in"], np.random.uniform(0, mid_val, pbed.data[f'pebble_type_{uni_id}'].sum()))
         else:
             if uni['threshold_type'] == 'passes':
                 pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], 'passes'] = np.random.randint(1, step_wise_variables[f"threshold_{uni['mat_name']}"][0] + 1, pbed.data[f'pebble_type_{uni_id}'].sum())
@@ -701,16 +707,20 @@ for step in range(first_step, Nsteps):
             threshold_type = uni['threshold_type']
             threshold_dir = uni['threshold_dir']
             var = f'threshold_{uni["mat_name"]}'
-            if isinstance(uni['threshold'], str) and uni['threshold'] == 'adjustable':
-                threshold_val = uni['current_threshold']
+            if callable(uni['threshold']):
+                print_with_timestamp(f'\t\t{uni["mat_name"]} criterion: cumulative probability function of step and values')
+                to_discard = (pbed.data[f'pebble_type_{uni_id}']) & (pbed.data['recirculated']) & (np.array([np.random.random() < uni['threshold'](x, step) for x in pbed.data[threshold_type]]))
             else:
-                threshold_val = step_wise_variables[var][step-1]
-            if threshold_dir > 0:
-                print_with_timestamp(f'\t\t{uni["mat_name"]} criterion: {threshold_type} >= {threshold_val}')
-                to_discard = (pbed.data[f'pebble_type_{uni_id}']) & (pbed.data['recirculated']) & (pbed.data[threshold_type] >= threshold_val) # select recirculated pebbles with the right fuel which satisfy the discard criterion
-            else:
-                print_with_timestamp(f'\t\t{uni["mat_name"]} criterion: {threshold_type} <= {threshold_val}')
-                to_discard = (pbed.data[f'pebble_type_{uni_id}']) & (pbed.data['recirculated']) & (pbed.data[threshold_type] <= threshold_val) # select recirculated pebbles with the right fuel which satisfy the discard criterion
+                if isinstance(uni['threshold'], str) and uni['threshold'] == 'adjustable':
+                    threshold_val = uni['current_threshold']
+                else:
+                    threshold_val = step_wise_variables[var][step-1]
+                if threshold_dir > 0:
+                    print_with_timestamp(f'\t\t{uni["mat_name"]} criterion: {threshold_type} >= {threshold_val}')
+                    to_discard = (pbed.data[f'pebble_type_{uni_id}']) & (pbed.data['recirculated']) & (pbed.data[threshold_type] >= threshold_val) # select recirculated pebbles with the right fuel which satisfy the discard criterion
+                else:
+                    print_with_timestamp(f'\t\t{uni["mat_name"]} criterion: {threshold_type} <= {threshold_val}')
+                    to_discard = (pbed.data[f'pebble_type_{uni_id}']) & (pbed.data['recirculated']) & (pbed.data[threshold_type] <= threshold_val) # select recirculated pebbles with the right fuel which satisfy the discard criterion
             pbed.data.loc[to_discard, 'discarded'] = True
 
             Ndiscarded = pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], "discarded"].sum()
