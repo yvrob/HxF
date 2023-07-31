@@ -345,7 +345,7 @@ if thermal_coupling:
     os.system(f'ln -sfn ../OF/constant ./wrk_Serpent/constant')
     os.system(f'ln -sfn ../OF/{TH_step} ./wrk_Serpent/ifc')
     with open(main_input_file, 'a') as f:
-        f.write(f'\nset relfactor 0"\n') # do not relax powers since it is a dynamic simulation
+        f.write(f'\nset relfactor 0\n') # do not relax powers since it is a dynamic simulation
 
 serpent, serpent_input_files = start_Serpent(os.environ["SERPENT_EXE"], ncores, main_input_file, nnodes, verbosity_mode)
 nplots = count_plots(serpent_input_files) # count number of plot commands in input files
@@ -389,7 +389,7 @@ for step in range(Nsteps):
         step_wise_variables["time_step"].append(step_wise_variables["Nrows_to_move"][step] * (time_per_pass/(data.row_id.max() + 1))) # days)
     else:
         step_wise_variables["time_step"].append(step_wise_variables["DEM_step_increment"][step] * DEM_circulation_step/circulation_rate) # days
-print(step_wise_variables["time_step"])
+
 # Test if right number of values
 for var in step_wise_variables:
     if len(step_wise_variables[var]) != Nsteps:
@@ -427,6 +427,8 @@ tra['xyzr_in']       = get_transferrable(f"pbed_{pbed_universe_name}_xyzr", serp
 tra['burnable_fuel'] = {mat_name: get_transferrable(f"material_div_{mat_name}_burnable", serpent, input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
 tra['burnup_in'] = {mat_name: get_transferrable(f"material_div_{mat_name}_burnup", serpent, input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
 tra['reset_fuel'] = {mat_name: get_transferrable(f"material_div_{mat_name}_reset", serpent, input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
+for mat_name in getdict(active_pebbles_dict, 'mat_name'):
+    del serpent._transferrables[f'sss_ov_material_div_{mat_name}_adens']
 
 # if domain_decomposition:
 #     tra['domain_in'] = {mat_name: get_transferrable(f"material_div_{mat_name}_domain", serpent, input_parameter=True) for mat_name in getdict(active_pebbles_dict, 'mat_name')}
@@ -849,7 +851,6 @@ for step in range(first_step, Nsteps):
             if field in extra_fields:
                 pbed.old_data.loc[pbed.data['discarded'], field] = 0
 
-        curr_time = float(next_time) # Increment time
         pbed.data['pass_nsteps'] += 1
         pbed.data['pass_residence_time'] += time_step  # Increment pass residence times
         pbed.data['residence_time'] += time_step  # Increment residence times
@@ -857,20 +858,46 @@ for step in range(first_step, Nsteps):
 
         # Run Serpent for transport and depletion
         if transport:
+
+            # Thermal coupling
             if thermal_coupling:
                 print_with_timestamp(f'\tStarting thermal loop  #{TH_iteration+1}')
+                
+                # Read mesh cells centers and link them to curent pebble positions
+                if TH_step == 0:
+                    TH['cells_centers'] = read_GeN_Foam('C', TH_step, './OF') * TH['positions_scale']
+                points_to_cell_num = cKDTree(TH['cells_centers']).query(pbed.data[['x','y','z']])[1]
+
+                # Make fuels non burnable
+                for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
+                    burnable_vec = np.zeros(pbed.data.loc[pbed.data[f'pebble_type_{uni_id}']].shape[0])
+                    Serpent_set_values(tra['burnable_fuel'][getdict(active_pebbles_dict, 'mat_name')[uni_id]], burnable_vec.astype(int))
+
+                # Start iterations
                 TH_substep = 0
                 running_thermal = True
                 while running_thermal:
                     print_with_timestamp(f'\t\tSubstep #{TH_substep+1} (TH time = {TH_step}):')
-                    print_with_timestamp(f'\t\t - Running transport...')
+
+                    # Link latest OF step to ifc folder, where tallied power densities will be written
                     os.system(f'ln -sfn ../OF/{TH_step} ./wrk_Serpent/ifc')
-                    serpent.solve()
+
+                    # Transport simulation
+                    print_with_timestamp(f'\t\t - Running transport and writing powers in ./OF/{TH_step}...')
+                    serpent.advance_to_time(curr_time + 0.1) # small burnup step is required to update values (keff, Q, etc.)
+                    if correct:
+                        serpent.correct() # Run corrector step if using (predictor/corrector)
+                    Serpent_set_values(tra['time_in'], curr_time) # reset time not to account for the short time step before
+
+                    # Extract transport data
                     keff = Serpent_get_values(tra['keff'])[0]
                     keff_rel_unc = Serpent_get_values(tra['keff_rel_unc'])[0]
                     keff_unc = keff*keff_rel_unc
-                    Q = Serpent_get_values(tra['Q'])
+                    Q = Serpent_get_values(tra['Q']) # There seem to be a transferrable on power, use it
                     TH['fields_values'] = {'keff':keff, 'Q':Q}
+                    print_with_timestamp(f'\t\t\tDone. keff = {keff:.5f} +/- {keff_unc*1e5:.0f} pcm')
+
+                    # Apparently, Serpent creates mulitple power files, not yet understood. Try to rename them (does not fully work)
                     to_rename = [filename for filename in os.listdir(f'./OF/{TH_step}/fluidRegion/') if re.match(r'^powerDensityNeutronics\d+$', filename)]
                     if len(to_rename) == 0:
                         pass
@@ -879,22 +906,21 @@ for step in range(first_step, Nsteps):
                     else:
                         raise Exception(f'Too many thermal files to rename: {to_rename}')
 
-                    print_with_timestamp(f'\t\t\tDone. keff = {keff:.5f} +/- {keff_unc*1e5:.0f} pcm')
+                    # TH simulation
                     print_with_timestamp(f'\t\t - Running thermal-hydraulics...')
                     execute_GeN_Foam(TH_step, TH_iteration, TH_substep, TH)
-                    if TH_step == 0:
-                        TH['cells_centers'] = read_GeN_Foam('C', TH_step, './OF') * TH['positions_scale']
                     TH_substep += 1
                     TH_step += TH['step_size']
-                    points_to_cell_num = cKDTree(TH['cells_centers']).query(pbed.data[['x','y','z']])[1]
 
+                    # Extract thermal-hydraulics
                     for field in TH['fields_of_interest']:
                         if field != 'Q':
                             TH['fields_values'][field] = read_GeN_Foam(field, TH_step, './OF', 'fluidRegion')
                         pbed.data[field] = TH['fields_values'][field][points_to_cell_num]
                         print_with_timestamp(f"\t\t\t{field} (avg +/- std / min, max) = {TH['fields_values'][field].mean():.5E} +/- {TH['fields_values'][field].std():.5E} / {TH['fields_values'][field].min():.5E}, {TH['fields_values'][field].max():.5E}")
                     print_with_timestamp(f'\t\t\tDone.')
-
+                    
+                    # Test for convergence/maximum steps
                     if 'convergence_criteria' in TH and 'old_fields_values' in TH:
                         running_thermal = 0
                         print_with_timestamp('\t\tConvergence test:')
@@ -914,13 +940,22 @@ for step in range(first_step, Nsteps):
                     if 'max_steps' in TH and TH_substep >= TH['max_steps']:
                         print_with_timestamp('\t\tMaximum iterations reached.')
                         running_thermal = False
-
+                    
+                    # Store old values for convergence tests
                     TH['old_fields_values'] = TH['fields_values'].copy()
+
+                # Make fuel burnable again
+                for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
+                    not_decaying = ~pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], "recirculated"].values # select non-recirculated pebbles
+                    burnable_vec = np.ones(pbed.data.loc[pbed.data[f'pebble_type_{uni_id}']].shape[0])
+                    Serpent_set_values(tra['burnable_fuel'][getdict(active_pebbles_dict, 'mat_name')[uni_id]], burnable_vec.astype(int))
+
                 TH_iteration += 1
-            print_with_timestamp('\tEnd of thermal coupling')
+                print_with_timestamp('\tEnd of thermal coupling')
 
             print_with_timestamp('\tSending Serpent signal to run transport')
             serpent.advance_to_time(next_time) # Run Serpent transport + burn to next time (predictor if using predictor/corrector)
+
             if correct:
                 serpent.correct() # Run corrector step if using (predictor/corrector)
             print_with_timestamp('\tWaiting for Serpent...')
@@ -978,7 +1013,6 @@ for step in range(first_step, Nsteps):
                     pbed.data.loc[pbed.data[f'pebble_type_{uni_id}'], field] = Serpent_get_values(tra[field][material]).astype(float)
         print_with_timestamp('\t\t\tDone.')
 
-
         if step > 0:
             for field in ['fima', 'burnup']:
                 if field in extra_fields:
@@ -1022,11 +1056,12 @@ for step in range(first_step, Nsteps):
     pbed.data['avg_r_dist'] = (pbed.data['avg_r_dist']*(step-pbed.data['insertion_step'])+pbed.data['r_dist'])/(step-pbed.data['insertion_step']+1)
     pbed.data['pass_agg_r_dist'] += pbed.data['r_dist']*time_step
     pbed.data['pass_avg_r_dist'] = pbed.data['pass_agg_r_dist']/pbed.data['pass_residence_time']
+    curr_time = float(next_time) # Increment time
 
     #### Plots ###
     if plotting:
-        plt.close('all')
         print_with_timestamp('\tPlotting')
+        plt.close('all')
 
         # Plot latest geometry and save it to folder
         if plot_geom:
@@ -1048,8 +1083,9 @@ for step in range(first_step, Nsteps):
         for field in ['decayheat', 'activity']:
             if field in extra_fields:
                 detectors_fields.append(field)
+        if thermal_coupling:
+            th_fields = TH['fields_of_interest']
 
-        plt.close()
         if plot_base:
             plot_core_fields(pbed.data, base_fields, num_cols=4, savefig=f'Plots/base_{step}.png'); plt.show()
         if plot_cumulative:
@@ -1060,6 +1096,8 @@ for step in range(first_step, Nsteps):
             plot_core_fields(pbed.data, detectors_fields, num_cols=4, savefig=f'Plots/detectors_{step}.png'); plt.show()
         if plot_inventory and transport and len(inventory_names) > 0 and len(inventory_names) <= 20:
             plot_core_fields(pbed.data, inventory_names[:min(len(inventory_names), 20)], num_cols=5, savefig=f'Plots/inventory_{step}.png'); plt.show()
+        if plot_thermal and thermal_coupling:
+            plot_core_fields(pbed.data, th_fields, num_cols=4, savefig=f'Plots/thermal_{step}.png'); plt.show()
 
         # Plot keff
         if plot_keff and transport and (resolve_first or step>first_step):

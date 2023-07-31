@@ -5,14 +5,14 @@
 transport = True
 resolve_first = False
 correct = False
-domain_decomposition = True
+domain_decomposition = False
 
 # Motion
 discrete_motion = True
 looping = False
 
 # Restart
-restart_calculation = False
+restart_calculation = True
 read_first_compositions = False
 
 # Output
@@ -26,9 +26,8 @@ write_restart_discarded = False
 thermal_coupling = True
 if thermal_coupling:
     TH = {'solver': 'GeN-Foam', 'step_size':5, 'max_steps':1, 'nnodes':2, 'time_limit':1, 'positions_scale':100, 'fuel_mat': 'fuel',
-    'fields_of_interest':['Q', 'Tfav.nuclearSteadyStatePebble', 'Tmav.nuclearSteadyStatePebble', 'T'],
-    'convergence_criteria':{'Q':0.03, 'Tfav.nuclearSteadyStatePebble':0.01, 'Tmav.nuclearSteadyStatePebble':0.01, 'T':0.01, 'keff':30e-5}}
-
+    'fields_of_interest':['Q', 'Tfav.nuclearSteadyStatePebble', 'Tmav.nuclearSteadyStatePebble', 'T'],} #'convergence_criteria':{'Q':0.03, 'Tfav.nuclearSteadyStatePebble':0.01, 'Tmav.nuclearSteadyStatePebble':0.01, 'T':0.01, 'keff':30e-5}}
+    plot_thermal = True
 
 #%% Case
 path_to_case = './Models' # Path to input folder parent
@@ -52,7 +51,7 @@ detectors = {}
 power_normalization_field = 'power'
 power_normalization_value = 280e6 # W
 Nsteps = 2000
-neutrons_per_cycle = 10000 #200000
+neutrons_per_cycle = 1000000
 decay_step = 0 # days
 
 #%% Burnup cycle
@@ -103,9 +102,9 @@ if write_restart_discarded:
 
 #%% Restart read
 if restart_calculation:
-    restart_step = 381
-    restart_data = '/global/scratch/users/yvesrobert/HxF_dev/Cases/gFHR_dm_restart2/Data/core_381.csv'
-    restart_binary = '/global/scratch/users/yvesrobert/HxF_dev/Cases/gFHR_dm_restart2/wrk_Serpent/input.wrk_381'
+    restart_step = 578
+    restart_data = '/global/scratch/users/yvesrobert/HxF_dev/Cases/gFHR_dm_restart4/Data/core_578.csv'
+    restart_binary = '/global/scratch/users/yvesrobert/HxF_dev/Cases/gFHR_dm_restart4/wrk_Serpent/input.wrk_578'
 elif read_first_compositions:
     restart_binary = '/global/scratch/users/yvesrobert/HxF/Tools/Create_initial_compositions/restart/first_compos.wrk'
     restart_data = '/global/scratch/users/yvesrobert/HxF/Tools/Create_initial_compositions/data_first_compos.csv'

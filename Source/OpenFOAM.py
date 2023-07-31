@@ -77,8 +77,12 @@ cd ..
     return config + first_block + content
 
 def execute_GeN_Foam(of_step, of_iteration, of_substep, TH):
+    if 'partition' not in TH:
+        partition = os.environ['PARTITION']
+    else:
+        partition = TH['partition']
     with open('execute_TH.sub', 'w') as fw:
-        fw.write(create_sbatch_file(of_iteration, of_substep, of_step, TH['step_size'], TH['nnodes'], os.environ['PARTITION'], os.environ['PARTITION_CPUS_PER_NODE'], os.environ['QOS'], os.environ['GROUP_ACCOUNT'], TH['time_limit'], TH['solver']))
+        fw.write(create_sbatch_file(of_iteration, of_substep, of_step, TH['step_size'], TH['nnodes'], partition, os.environ['PARTITION_CPUS_PER_NODE'], os.environ['QOS'], os.environ['GROUP_ACCOUNT'], TH['time_limit'], TH['solver']))
     output = subprocess.check_output('sbatch execute_TH.sub', shell=True, universal_newlines=True)
     job_id = output.strip().split()[-1]
     while True:
