@@ -52,7 +52,7 @@ looping = True
 
 # Restart
 restart_calculation = True
-read_firt_compositions = False
+read_first_compositions = False
 
 # Output
 plotting = True
@@ -135,7 +135,7 @@ if restart_calculation:
     restart_step = 1030
     restart_data = '/global/scratch/users/yvesrobert/HxF/Cases/HTR-10_transient_challenging/Data/core_1030.csv'
     restart_binary = '/global/scratch/users/yvesrobert/HxF/Cases/HTR-10_transient_challenging/wrk_Serpent/input.inp.wrk_1030'
-elif read_firt_compositions:
+elif read_first_compositions:
     restart_binary = './Tools/Create_initial_compositions/restart/first_compos.wrk'
     restart_data = './Tools/Create_initial_compositions/data_first_compos.csv'
 

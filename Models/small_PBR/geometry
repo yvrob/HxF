@@ -1,5 +1,6 @@
 %%---plotting geometry
-plot 1 1000 2000
+plot 1 5000 10000
+plot 3 5000 5000
 
 %%---surf for core vessel
 surf infinite inf

@@ -23,7 +23,7 @@ def process_input(input_files, pbed_universe_name):
 	if isinstance(input_files, str):
 		input_files = rec_Serpent_file_search(input_files, verbose=False)
 	print_with_timestamp("Cleaning input files...")
-	patterns = (r"^set[ \t]depout[ \t]", r"^dep[ \t]", r"^set[ \t]inventory[ \t]", r"^det(?=.*dl[ \t]+{0}[ \t])".format(re.escape(pbed_universe_name)), r"^set[ \t]rfr[ \t]", r"^set[ \t]rfw[ \t]", r"^set[ \t]acelib[ \t]", r"^set[ \t]declib[ \t]", r"^set[ \t]nfylib[ \t]", r"^set[ \t]dd[ \t]", r"^set[ \t]relfactor[ \t]")
+	patterns = (r"^set[ \t]depout[ \t]", r"^dep[ \t]", r"^set[ \t]inventory[ \t]", r"^det(?=.*dl[ \t]+{0}[ \t])".format(re.escape(pbed_universe_name)), r"^set[ \t]rfr[ \t]", r"^set[ \t]rfw[ \t]", r"^set[ \t]acelib[ \t]", r"^set[ \t]declib[ \t]", r"^set[ \t]nfylib[ \t]", r"^set[ \t]dd[ \t]", r"^set[ \t]relfactor[ \t]", r"^set[ \t]pcc[ \t]")
 	for file_path in input_files:
 		modified_lines = []
 		removed_lines = []

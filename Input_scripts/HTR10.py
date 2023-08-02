@@ -14,7 +14,7 @@ looping = True
 
 # Restart
 restart_calculation = True
-read_firt_compositions = False
+read_first_compositions = False
 
 # Output
 plotting = True
@@ -91,9 +91,9 @@ if write_restart:
 #%% Restart read
 if restart_calculation:
     restart_step = 750
-    restart_data = '/global/scratch/users/co_nuclear/HTR10_large/core_750.csv'
-    restart_binary = '/global/scratch/users/co_nuclear/HTR10_large/input.inp.wrk_750'
-elif read_firt_compositions:
+    restart_data = '/global/scratch/users/yvesrobert/HxF/Cases/HTR-10_large_3/Data/core_750.csv'
+    restart_binary = '/global/scratch/users/yvesrobert/HxF/Cases/HTR-10_large_3/wrk_Serpent/input.inp.wrk_750'
+elif read_first_compositions:
     # restart_binary = '/global/scratch/users/clementvayrondelamoureyre/HTR10_large/input.inp.wrk_750'
     # restart_data = '/global/scratch/users/clementvayrondelamoureyre/HTR10_large/core_750.csv'
     restart_binary ='/global/scratch/users/clementvayrondelamoureyre/HTR10_large/input.inp.wrk_750'

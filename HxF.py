@@ -139,6 +139,12 @@ if domain_decomposition:
     with open(main_input_file, 'a') as f:
         f.write(f'\nset dd 5 "initial_domains.txt"\n') # 5 is file decomposition
 
+#%% Predictor/corrector
+if corrector:
+    # Add line for predictor/corrector to the input
+    with open(main_input_file, 'a') as f:
+        f.write(f'\nset pcc 1\n') # 5 is file decomposition
+
 #%% Change positions, universes and radii based on input
 
 # If restarting from a step, calculate equivalent step and positions
@@ -862,11 +868,6 @@ for step in range(first_step, Nsteps):
             # Thermal coupling
             if thermal_coupling:
                 print_with_timestamp(f'\tStarting thermal loop  #{TH_iteration+1}')
-                
-                # Read mesh cells centers and link them to curent pebble positions
-                if TH_step == 0:
-                    TH['cells_centers'] = read_GeN_Foam('C', TH_step, './OF') * TH['positions_scale']
-                points_to_cell_num = cKDTree(TH['cells_centers']).query(pbed.data[['x','y','z']])[1]
 
                 # Make fuels non burnable
                 for uni_id, (uni_name, uni) in enumerate(active_pebbles_dict.items()):
@@ -883,6 +884,7 @@ for step in range(first_step, Nsteps):
                     os.system(f'ln -sfn ../OF/{TH_step} ./wrk_Serpent/ifc')
 
                     # Transport simulation
+                    print('Files before neutro: ', glob('./wrk_Serpent/ifc/fluidRegion/*'))
                     print_with_timestamp(f'\t\t - Running transport and writing powers in ./OF/{TH_step}...')
                     serpent.advance_to_time(curr_time + 0.1) # small burnup step is required to update values (keff, Q, etc.)
                     if correct:
@@ -896,9 +898,11 @@ for step in range(first_step, Nsteps):
                     Q = Serpent_get_values(tra['Q']) # There seem to be a transferrable on power, use it
                     TH['fields_values'] = {'keff':keff, 'Q':Q}
                     print_with_timestamp(f'\t\t\tDone. keff = {keff:.5f} +/- {keff_unc*1e5:.0f} pcm')
+                    print('Files after neutro: ', glob('./wrk_Serpent/ifc/fluidRegion/*'))
 
                     # Apparently, Serpent creates mulitple power files, not yet understood. Try to rename them (does not fully work)
                     to_rename = [filename for filename in os.listdir(f'./OF/{TH_step}/fluidRegion/') if re.match(r'^powerDensityNeutronics\d+$', filename)]
+                    print(to_rename)
                     if len(to_rename) == 0:
                         pass
                     elif len(to_rename) == 1:
@@ -907,8 +911,14 @@ for step in range(first_step, Nsteps):
                         raise Exception(f'Too many thermal files to rename: {to_rename}')
 
                     # TH simulation
+                    print('Files before TH: ', glob('./wrk_Serpent/ifc/fluidRegion/*'))
                     print_with_timestamp(f'\t\t - Running thermal-hydraulics...')
                     execute_GeN_Foam(TH_step, TH_iteration, TH_substep, TH)
+                    
+                    # Read mesh cells centers and link them to curent pebble positions
+                    if TH_step == 0:
+                        TH['cells_centers'] = read_GeN_Foam('C', TH_step, './OF') * TH['positions_scale']
+                    points_to_cell_num = cKDTree(TH['cells_centers']).query(pbed.data[['x','y','z']])[1]
                     TH_substep += 1
                     TH_step += TH['step_size']
 
@@ -919,7 +929,8 @@ for step in range(first_step, Nsteps):
                         pbed.data[field] = TH['fields_values'][field][points_to_cell_num]
                         print_with_timestamp(f"\t\t\t{field} (avg +/- std / min, max) = {TH['fields_values'][field].mean():.5E} +/- {TH['fields_values'][field].std():.5E} / {TH['fields_values'][field].min():.5E}, {TH['fields_values'][field].max():.5E}")
                     print_with_timestamp(f'\t\t\tDone.')
-                    
+                    print('Files after TH: ', glob('./wrk_Serpent/ifc/fluidRegion/*'))
+
                     # Test for convergence/maximum steps
                     if 'convergence_criteria' in TH and 'old_fields_values' in TH:
                         running_thermal = 0
@@ -1096,7 +1107,7 @@ for step in range(first_step, Nsteps):
             plot_core_fields(pbed.data, detectors_fields, num_cols=4, savefig=f'Plots/detectors_{step}.png'); plt.show()
         if plot_inventory and transport and len(inventory_names) > 0 and len(inventory_names) <= 20:
             plot_core_fields(pbed.data, inventory_names[:min(len(inventory_names), 20)], num_cols=5, savefig=f'Plots/inventory_{step}.png'); plt.show()
-        if plot_thermal and thermal_coupling:
+        if thermal_coupling and plot_thermal and 'fields_values' in TH:
             plot_core_fields(pbed.data, th_fields, num_cols=4, savefig=f'Plots/thermal_{step}.png'); plt.show()
 
         # Plot keff

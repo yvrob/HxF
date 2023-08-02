@@ -13,7 +13,7 @@ looping = True
 
 # Restart
 restart_calculation = True
-read_firt_compositions = False
+read_first_compositions = False
 
 # Output
 plotting = True
@@ -94,7 +94,7 @@ if restart_calculation:
     restart_step = 990
     restart_data = '/global/scratch/users/yvesrobert/HxF/Cases/HTR-10_transient_easy/Data/core_990.csv'
     restart_binary = '/global/scratch/users/yvesrobert/HxF/Cases/HTR-10_transient_easy/wrk_Serpent/input.inp.wrk_990'
-elif read_firt_compositions:
+elif read_first_compositions:
     restart_binary = './Tools/Create_initial_compositions/restart/first_compos.wrk'
     restart_data = './Tools/Create_initial_compositions/data_first_compos.csv'
 

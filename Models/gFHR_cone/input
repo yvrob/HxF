@@ -8,7 +8,7 @@ set depout 2 2
 set Cerberus_verbosity 0
 set ures 1
 set power 280e6
-set pop 20000 250 25
+set pop 20000 500 50
 
 % Performance/memory
 set opti 1

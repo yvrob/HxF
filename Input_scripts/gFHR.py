@@ -13,7 +13,7 @@ looping = False
 
 # Restart
 restart_calculation = False
-read_firt_compositions = True
+read_first_compositions = True
 
 # Output
 plotting = True
@@ -90,10 +90,10 @@ if write_restart:
 
 #%% Restart read
 if restart_calculation:
-    restart_step = 650
-    restart_data = '/global/scratch/users/yvesrobert/HTR-10_latest/Cases/HTR-10_P1_T1/Data/data_650.csv'
-    restart_binary = '/global/scratch/users/yvesrobert/HTR-10_latest/Cases/HTR-10_P1_T1/wrk_Serpent/input.inp.wrk_650'
-elif read_firt_compositions:
+    restart_step = 240
+    restart_data = '/global/scratch/users/co_nuclear/gFHR_equilibrium/fine_eq/core_240.csv'
+    restart_binary = '/global/scratch/users/co_nuclear/gFHR_equilibrium/fine_eq/input.wrk_240'
+elif read_first_compositions:
     restart_binary = '/global/scratch/users/yvesrobert/HxF/Tools/Create_initial_compositions/restart/first_compos.wrk'
     restart_data = '/global/scratch/users/yvesrobert/HxF/Tools/Create_initial_compositions/data_first_compos.csv'
 

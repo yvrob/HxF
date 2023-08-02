@@ -57,6 +57,7 @@ inventory_names = ['551370'] #'10010', '10030', '20040', '30070', '40100', '5010
 
 #%% Thermal-hydraulics
 if thermal_coupling:
+    plot_thermal = True
     TH = {'solver': 'GeN-Foam', 'step_size':5, 'max_steps':1, 'nnodes':2, 'time_limit':1, 'positions_scale':100, 'fuel_mat': 'fuel',
     'fields_of_interest':['Q', 'Tfav.nuclearSteadyStatePebble', 'Tmav.nuclearSteadyStatePebble', 'T']}#    'convergence_criteria':{'Q':0.03, 'Tfav.nuclearSteadyStatePebble':0.01, 'Tmav.nuclearSteadyStatePebble':0.01, 'T':0.01, 'keff':30e-5}}
 
