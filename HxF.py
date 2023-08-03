@@ -140,10 +140,12 @@ if domain_decomposition:
         f.write(f'\nset dd 5 "initial_domains.txt"\n') # 5 is file decomposition
 
 #%% Predictor/corrector
-if correct:
-    # Add line for predictor/corrector to the input
-    with open(main_input_file, 'a') as f:
-        f.write(f'\nset pcc 1\n') # 5 is file decomposition
+with open(main_input_file, 'a') as f:
+    if correct:
+        # Add line for predictor/corrector to the input
+        f.write(f'\nset pcc 1\n')
+    else:
+        f.write(f'\nset pcc 0\n')
 
 #%% Change positions, universes and radii based on input
 
